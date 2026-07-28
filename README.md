@@ -1,138 +1,299 @@
-Snail - Interactive Desktop AI Assistant
-A cross-platform desktop AI companion built with Electron, React, TypeScript, and PixiJS. Snail lives on your desktop as an animated virtual pet with the intelligence of ChatGPT.
+# 🐌 Snail – Interactive Desktop AI Assistant
 
-Snail
+> A beautiful cross-platform desktop AI companion that lives on your screen like a virtual pet while helping you stay productive.
 
-Features
-Desktop Companion
-Animated snail that walks, climbs, and explores your desktop edges
-Smooth PixiJS animations at 60+ FPS with particle effects and slime trails
-Spawn/hide animations with magical cloud effects
-Idle breathing, blinking, sleeping with ZZZ indicators
-Emotional states that affect animations and dialogue
-AI Assistant
-OpenAI-compatible API support (GPT-4o, GPT-4o Mini, GPT-4 Turbo)
-Streaming responses with real-time typing animation
-Function calling for desktop actions (todos, reminders, notes, calendar, pomodoro, habits)
-Local fallback responses when no API key is configured
-Conversational memory and context persistence
-Productivity Tools
-To-do list manager with priorities and lists
-Sticky notes with color coding
-Reminder system with recurring support
-Pomodoro timer with visual countdown
-Habit tracker with streak counting
-Calendar event management
-Interaction
-Drag Snail anywhere on screen
-Double-click to open chat
-Right-click for context menu
-Pet and feed interactions trigger celebration animations
-Global shortcut (Ctrl+Shift+S) to toggle visibility
-System tray integration
-Visual Design
-Glassmorphism UI with blurred backdrops
-Smooth Framer Motion transitions
-macOS-inspired rounded design
-8 snail skins (Classic, Golden, Ocean, Sunset, Forest, Midnight, Ruby, Amethyst)
-5 personality modes
-Tech Stack
-Layer	Technology
-Framework	Electron 30
-Frontend	React 18 + TypeScript
-Build	Vite 5
-Styling	TailwindCSS 3
-Animation	PixiJS 8, Framer Motion 11
-State	Zustand 4
-Database	SQLite via better-sqlite3
-AI	OpenAI SDK v4
-Getting Started
-Prerequisites
-Node.js 18+
-npm 9+
-Installation
-# Clone the repository
+Built with **Electron**, **React**, **TypeScript**, **PixiJS**, and **OpenAI-compatible APIs**.
+
+---
+
+## ✨ Overview
+
+Snail is more than just another AI chatbot.
+
+It is an animated desktop companion that explores your screen, reacts to your interactions, remembers conversations, manages tasks, and assists with daily productivity—all while feeling alive through expressive animations and personality.
+
+---
+
+# 🎬 Features
+
+## 🐌 Interactive Desktop Companion
+
+* Transparent always-on-top desktop overlay
+* Smooth 60+ FPS animations
+* Walks naturally across your desktop
+* Climbs vertically on both screen edges
+* Crawls upside-down along the top edge
+* Smooth corner turning with easing
+* Random exploration behavior
+* Cursor tracking
+* Drag-and-drop movement
+* Idle breathing and blinking
+* Sleeping animation with ZZZ particles
+* Magical cloud spawn & disappear effects
+* Celebration, dance, wave, and emotion animations
+* Slime trail and particle effects
+
+---
+
+## 🤖 AI Assistant
+
+Powered by **OpenAI-compatible APIs**
+
+Supports:
+
+* GPT-4o
+* GPT-4o Mini
+* GPT-4 Turbo
+* Compatible self-hosted models
+
+Capabilities:
+
+* Natural conversations
+* Streaming responses
+* Function calling
+* Persistent memory
+* Context-aware replies
+* Local fallback mode (works without API key)
+
+---
+
+## 📅 Productivity Suite
+
+Everything built directly into Snail.
+
+### ✅ Task Management
+
+* To-do lists
+* Priorities
+* Categories
+* Completion tracking
+
+### 📝 Notes
+
+* Sticky notes
+* Color coding
+* Rich organization
+
+### ⏰ Reminders
+
+* One-time reminders
+* Recurring reminders
+* Desktop notifications
+
+### 🍅 Focus Mode
+
+* Pomodoro timer
+* Countdown
+* Focus sessions
+
+### 📆 Calendar
+
+* Create events
+* Schedule meetings
+* Date reminders
+
+### 🔥 Habit Tracker
+
+* Daily habits
+* Streak counting
+* Progress tracking
+
+---
+
+## 🖱️ Interaction
+
+Interact naturally with Snail.
+
+* Drag anywhere
+* Double-click to chat
+* Right-click context menu
+* Pet the snail
+* Feed the snail
+* Celebrate completed tasks
+* Global shortcut
+
+```
+Ctrl + Shift + S
+```
+
+Toggle Snail instantly from anywhere.
+
+---
+
+# 🎨 Design
+
+Inspired by modern macOS applications.
+
+Features:
+
+* Glassmorphism
+* Rounded UI
+* Soft shadows
+* Smooth transitions
+* Premium animations
+* 8 beautiful snail skins
+* 5 personality modes
+
+---
+
+# 🚀 Technology Stack
+
+| Category         | Technology                  |
+| ---------------- | --------------------------- |
+| Desktop          | Electron 30                 |
+| Frontend         | React 18                    |
+| Language         | TypeScript                  |
+| Build Tool       | Vite 5                      |
+| Styling          | TailwindCSS 3               |
+| Animation        | PixiJS 8 + Framer Motion 11 |
+| State Management | Zustand                     |
+| Database         | SQLite (better-sqlite3)     |
+| AI               | OpenAI SDK v4               |
+
+---
+
+# 📦 Installation
+
+## Prerequisites
+
+* Node.js 18+
+* npm 9+
+
+Clone the repository
+
+```bash
 git clone https://github.com/Nik-coder-10/Snail.git
 cd Snail
+```
 
-# Install dependencies
+Install dependencies
+
+```bash
 npm install
+```
 
-# Generate tray icon
+Generate the tray icon
+
+```bash
 node scripts/generate-icon.js
-Development
-# Start in development mode
+```
+
+---
+
+# 💻 Development
+
+Start the development environment
+
+```bash
 npm run dev
-Building
-# Production build
+```
+
+---
+
+# 🏗️ Build
+
+Production build
+
+```bash
 npm run build
+```
 
-# Package for macOS
+Package for macOS
+
+```bash
 npm run pack:mac
+```
 
-# Package for Windows
+Package for Windows
+
+```bash
 npm run pack:win
-Configuration
-Open Settings (right-click Snail > Settings) to configure:
+```
 
-AI API Key: Your OpenAI or compatible API key
-API Endpoint: Custom endpoint for self-hosted models
-Model: GPT-4o, GPT-4o Mini, or GPT-4 Turbo
-Skin: Choose from 8 visual themes
-Personality: Playful, Formal, Casual, Philosophical, or Energetic
-Notifications: Enable/disable desktop notifications
-Settings are persisted locally in SQLite and never leave your machine.
+---
 
-Project Structure
-src/
-├── main/
-│   ├── index.ts              # Electron main process
-│   └── preload.ts            # Context bridge API
-├── renderer/
-│   ├── main.tsx              # React entry
-│   ├── App.tsx               # Root component
-│   ├── components/
-│   │   ├── shell/
-│   │   │   ├── SnailEngine.ts     # PixiJS animation engine
-│   │   │   └── SnailContainer.tsx  # React-PixiJS bridge
-│   │   ├── dialogue/
-│   │   │   └── DialoguePanel.tsx   # Chat UI
-│   │   ├── ui/
-│   │   │   └── ContextMenu.tsx     # Right-click menu
-│   │   ├── panels/                # Feature panels
-│   │   │   ├── TodoPanel.tsx
-│   │   │   ├── NotesPanel.tsx
-│   │   │   ├── ReminderPanel.tsx
-│   │   │   ├── PomodoroPanel.tsx
-│   │   │   ├── HabitPanel.tsx
-│   │   │   ├── CalendarPanel.tsx
-│   │   │   └── SettingsPanel.tsx
-│   │   └── overlays/
-│   │       └── NotificationOverlay.tsx
-│   ├── store/
-│   │   └── useStore.ts           # Zustand state
-│   └── styles/
-│       └── globals.css           # TailwindCSS + glassmorphism
-├── shared/
-│   └── types.ts                  # Shared TypeScript types
-├── db/
-│   ├── database.ts               # SQLite initialization
-│   └── repository.ts             # Data access layer
-└── ai/
-    └── service.ts                # OpenAI API client
-AI Tool Calling
-Snail supports 10 built-in tools that the AI can invoke:
+# ⚙️ Configuration
 
-Tool	Description
-create_todo	Create a to-do item
-create_reminder	Set a reminder with recurrence
-create_note	Create a sticky note
-create_calendar_event	Schedule a calendar event
-start_pomodoro	Start a focus timer
-create_habit	Track a new habit
-open_app	Launch an application
-search_files	Open file dialog
-remember	Save to memory
-notify	Show desktop notification
-License
-MIT
+Configure Snail directly from **Settings**.
+
+Available options:
+
+* OpenAI API Key
+* Custom API Endpoint
+* AI Model Selection
+* Theme / Skin
+* Personality
+* Notifications
+
+All settings are stored locally using SQLite.
+
+No personal data leaves your device unless an external AI provider is configured.
+
+---
+
+# 🧠 AI Tool Calling
+
+Snail can perform desktop actions using built-in tools.
+
+| Tool                    | Description                   |
+| ----------------------- | ----------------------------- |
+| `create_todo`           | Create a new to-do            |
+| `create_reminder`       | Schedule reminders            |
+| `create_note`           | Create sticky notes           |
+| `create_calendar_event` | Add calendar events           |
+| `start_pomodoro`        | Start a focus session         |
+| `create_habit`          | Track habits                  |
+| `open_app`              | Launch desktop applications   |
+| `search_files`          | Browse local files            |
+| `remember`              | Save memories                 |
+| `notify`                | Display desktop notifications |
+
+---
+
+# 📂 Project Structure
+
+```text
+src
+├── ai
+│   └── service.ts
+├── db
+│   ├── database.ts
+│   └── repository.ts
+├── main
+│   ├── index.ts
+│   └── preload.ts
+├── renderer
+│   ├── components
+│   │   ├── dialogue
+│   │   ├── overlays
+│   │   ├── panels
+│   │   ├── shell
+│   │   └── ui
+│   ├── store
+│   ├── styles
+│   ├── App.tsx
+│   └── main.tsx
+└── shared
+    └── types.ts
+```
+
+---
+
+# 🌟 Highlights
+
+* 🐌 Living animated desktop companion
+* 🤖 AI-powered conversations
+* 🎭 Expressive personality & emotions
+* 🎨 Premium glassmorphism UI
+* ⚡ Native desktop integration
+* 📅 Complete productivity suite
+* 💾 Local SQLite persistence
+* 🧩 OpenAI-compatible architecture
+* 🖥️ Cross-platform support
+* 🚀 Built with modern web technologies
+
+---
+
+# 📜 License
+
+Released under the **MIT License**.
