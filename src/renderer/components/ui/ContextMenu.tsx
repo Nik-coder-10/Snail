@@ -10,7 +10,6 @@ export const ContextMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setShowChat,
     snail,
     setSnailSkin,
-    setSnailVisible,
   } = useStore();
 
   const menuItems = [
@@ -76,7 +75,10 @@ export const ContextMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     {
       label: 'Hide Snail',
       icon: '',
-      action: () => { setSnailVisible(false); onClose(); },
+      action: () => {
+        window.snailAPI.hideWindow();
+        onClose();
+      },
     },
   ];
 

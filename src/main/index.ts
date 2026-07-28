@@ -162,6 +162,14 @@ function registerIPC(): void {
     mainWindow?.webContents.send('dragging', false);
   });
 
+  ipcMain.on('window:hide', () => {
+    mainWindow?.hide();
+  });
+
+  ipcMain.on('window:show', () => {
+    mainWindow?.show();
+  });
+
   ipcMain.handle('window:getScreenBounds', () => {
     return screen.getPrimaryDisplay().workArea;
   });

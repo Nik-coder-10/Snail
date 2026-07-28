@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('snailAPI', {
 
   startDrag: () => ipcRenderer.send('window:startDrag'),
   stopDrag: () => ipcRenderer.send('window:stopDrag'),
+  hideWindow: () => ipcRenderer.send('window:hide'),
+  showWindow: () => ipcRenderer.send('window:show'),
 
   onDraggingChange: (callback: (dragging: boolean) => void) => {
     ipcRenderer.on('dragging', (_event, dragging) => callback(dragging));

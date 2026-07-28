@@ -9,6 +9,8 @@ interface SnailAPI {
   getScreenBounds: () => Promise<{ x: number; y: number; width: number; height: number }>;
   startDrag: () => void;
   stopDrag: () => void;
+  hideWindow: () => void;
+  showWindow: () => void;
   onDraggingChange: (callback: (dragging: boolean) => void) => void;
   onReminderTrigger: (callback: (reminder: { title: string; description?: string; id: string }) => void) => void;
   onNavigate: (callback: (page: string) => void) => void;
