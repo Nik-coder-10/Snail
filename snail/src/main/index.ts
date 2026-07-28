@@ -6,7 +6,7 @@ import type { Reminder } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let reminderTimer: NodeJS.Timeout | null = null;
+let reminderTimer: ReturnType<typeof setInterval> | null = null;
 
 const SNAIL_SIZE = { width: 400, height: 300 };
 

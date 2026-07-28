@@ -1,5 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Valid minimal 16x16 green PNG icon
 const png = Buffer.from([
@@ -16,6 +20,10 @@ const png = Buffer.from([
   0x44, 0xAE, 0x42, 0x60, 0x82,
 ]);
 
-const iconPath = path.join(__dirname, '..', 'assets', 'tray-icon.png');
+const assetsDir = path.join(__dirname, '..', 'assets');
+if (!fs.existsSync(assetsDir)) {
+  fs.mkdirSync(assetsDir, { recursive: true });
+}
+const iconPath = path.join(assetsDir, 'tray-icon.png');
 fs.writeFileSync(iconPath, png);
 console.log('Tray icon generated at', iconPath);

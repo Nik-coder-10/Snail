@@ -57,7 +57,7 @@ A cross-platform desktop AI companion built with Electron, React, TypeScript, an
 | Styling | TailwindCSS 3 |
 | Animation | PixiJS 8, Framer Motion 11 |
 | State | Zustand 4 |
-| Database | SQLite via better-sqlite3 |
+| Database | JSON file storage (no native modules) |
 | AI | OpenAI SDK v4 |
 
 ---
@@ -67,6 +67,8 @@ A cross-platform desktop AI companion built with Electron, React, TypeScript, an
 ### Prerequisites
 - Node.js 18+
 - npm 9+
+
+No native build tools required. All dependencies are pure JavaScript and work on macOS, Windows, and Linux out of the box.
 
 ### Installation
 
@@ -79,8 +81,13 @@ cd Snail
 npm install
 
 # Generate tray icon
-node scripts/generate-icon.js
+npm run icon
 ```
+
+### Windows Notes
+- Works on Windows 10/11 with Node.js 18+
+- No Visual Studio or Python build tools needed
+- Uses JSON file storage in `%APPDATA%/Snail/` for persistence
 
 ### Development
 
@@ -154,7 +161,7 @@ src/
 ├── shared/
 │   └── types.ts                  # Shared TypeScript types
 ├── db/
-│   ├── database.ts               # SQLite initialization
+│   ├── database.ts               # JSON file storage
 │   └── repository.ts             # Data access layer
 └── ai/
     └── service.ts                # OpenAI API client

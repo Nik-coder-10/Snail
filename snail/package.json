@@ -16,11 +16,11 @@
     "pack:mac": "electron-builder --mac",
     "pack:win": "electron-builder --win",
     "pack:linux": "electron-builder --linux",
-    "lint": "eslint src --ext .ts,.tsx"
+    "lint": "eslint src --ext .ts,.tsx",
+    "icon": "node scripts/generate-icon.mjs",
+    "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0",
-    "electron-store": "^8.1.0",
     "framer-motion": "^11.0.0",
     "openai": "^4.50.0",
     "pixi.js": "^8.0.0",
@@ -31,7 +31,6 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
     "@types/node": "^26.1.2",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
@@ -58,22 +57,13 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": [
-        "dmg",
-        "zip"
-      ]
+      "target": ["dmg", "zip"]
     },
     "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ]
+      "target": ["nsis", "portable"]
     },
     "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ]
+      "target": ["AppImage", "deb"]
     }
   }
 }

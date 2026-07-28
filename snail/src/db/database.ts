@@ -1,130 +1,95 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 import { app } from 'electron';
 
-let db: Database.Database;
+const DB_DIR = '.';
+let dataDir: string;
 
-export function initDatabase(): Database.Database {
-  const dbPath = path.join(app.getPath('userData'), 'snail.db');
-  db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS todos (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      completed INTEGER DEFAULT 0,
-      priority TEXT DEFAULT 'medium',
-      due_date INTEGER,
-      list_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS todo_lists (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      color TEXT DEFAULT '#22c55e',
-      icon TEXT DEFAULT 'list'
-    );
-
-    CREATE TABLE IF NOT EXISTS sticky_notes (
-      id TEXT PRIMARY KEY,
-      title TEXT DEFAULT '',
-      content TEXT DEFAULT '',
-      color TEXT DEFAULT '#fef3c7',
-      pos_x REAL DEFAULT 100,
-      pos_y REAL DEFAULT 100,
-      width REAL DEFAULT 250,
-      height REAL DEFAULT 200,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL,
-      pinned INTEGER DEFAULT 0
-    );
-
-    CREATE TABLE IF NOT EXISTS reminders (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      trigger_at INTEGER NOT NULL,
-      recurring_pattern TEXT,
-      recurring_interval INTEGER,
-      completed INTEGER DEFAULT 0,
-      created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
-      id TEXT PRIMARY KEY,
-      start_time INTEGER NOT NULL,
-      end_time INTEGER,
-      duration INTEGER NOT NULL,
-      break_duration INTEGER NOT NULL,
-      type TEXT DEFAULT 'focus',
-      completed INTEGER DEFAULT 0,
-      task TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS habits (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      frequency TEXT DEFAULT 'daily',
-      target INTEGER DEFAULT 1,
-      streak INTEGER DEFAULT 0,
-      completions TEXT DEFAULT '{}',
-      color TEXT DEFAULT '#22c55e',
-      icon TEXT DEFAULT 'check',
-      created_at INTEGER NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS chat_history (
-      id TEXT PRIMARY KEY,
-      role TEXT NOT NULL,
-      content TEXT NOT NULL,
-      timestamp INTEGER NOT NULL,
-      emotion TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS preferences (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS calendar_events (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      start_time INTEGER NOT NULL,
-      end_time INTEGER NOT NULL,
-      location TEXT,
-      all_day INTEGER DEFAULT 0,
-      reminder INTEGER,
-      recurrence TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS memories (
-      id TEXT PRIMARY KEY,
-      content TEXT NOT NULL,
-      category TEXT DEFAULT 'general',
-      importance REAL DEFAULT 0.5,
-      created_at INTEGER NOT NULL,
-      last_accessed INTEGER NOT NULL
-    );
-  `);
-
-  return db;
+interface StoreData {
+  todos: unknown[];
+  todoLists: unknown[];
+  stickyNotes: unknown[];
+  reminders: unknown[];
+  pomodoroSessions: unknown[];
+  habits: unknown[];
+  chatHistory: unknown[];
+  preferences: Record<string, unknown>;
+  calendarEvents: unknown[];
+  memories: unknown[];
 }
 
-export function getDatabase(): Database.Database {
-  if (!db) {
-    throw new Error('Database not initialized');
+const defaultData: StoreData = {
+  todos: [],
+  todoLists: [],
+  stickyNotes: [],
+  reminders: [],
+  pomodoroSessions: [],
+  habits: [],
+  chatHistory: [],
+  preferences: {},
+  calendarEvents: [],
+  memories: [],
+};
+
+let store: StoreData = { ...defaultData };
+
+function storePath(): string {
+  return path.join(dataDir, 'snail-data.json');
+}
+
+function loadStore(): void {
+  try {
+    if (fs.existsSync(storePath())) {
+      const raw = fs.readFileSync(storePath(), 'utf-8');
+      const loaded = JSON.parse(raw);
+      store = { ...defaultData, ...loaded };
+    }
+  } catch {
+    store = { ...defaultData };
   }
-  return db;
+}
+
+function saveStore(): void {
+  try {
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(storePath(), JSON.stringify(store, null, 2), 'utf-8');
+  } catch {
+    // silently fail - data will be in memory
+  }
+}
+
+export function initDatabase(): void {
+  dataDir = app.getPath('userData');
+  loadStore();
+}
+
+export function getDatabase() {
+  return {
+    get todos() { return store.todos; },
+    set todos(v) { store.todos = v; saveStore(); },
+    get todoLists() { return store.todoLists; },
+    set todoLists(v) { store.todoLists = v; saveStore(); },
+    get stickyNotes() { return store.stickyNotes; },
+    set stickyNotes(v) { store.stickyNotes = v; saveStore(); },
+    get reminders() { return store.reminders; },
+    set reminders(v) { store.reminders = v; saveStore(); },
+    get pomodoroSessions() { return store.pomodoroSessions; },
+    set pomodoroSessions(v) { store.pomodoroSessions = v; saveStore(); },
+    get habits() { return store.habits; },
+    set habits(v) { store.habits = v; saveStore(); },
+    get chatHistory() { return store.chatHistory; },
+    set chatHistory(v) { store.chatHistory = v; saveStore(); },
+    get preferences() { return store.preferences; },
+    set preferences(v) { store.preferences = v; saveStore(); },
+    get calendarEvents() { return store.calendarEvents; },
+    set calendarEvents(v) { store.calendarEvents = v; saveStore(); },
+    get memories() { return store.memories; },
+    set memories(v) { store.memories = v; saveStore(); },
+  };
 }
 
 export function closeDatabase(): void {
-  if (db) {
-    db.close();
-  }
+  // no-op with JSON storage
 }
