@@ -3,6 +3,10 @@ export default {
   content: ['./src/renderer/**/*.{html,ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Segoe UI Variable"', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        mono: ['"SF Mono"', '"Fira Code"', '"JetBrains Mono"', '"Cascadia Code"', 'monospace'],
+      },
       colors: {
         snail: {
           50: '#f0fdf4',
@@ -16,14 +20,13 @@ export default {
           800: '#166534',
           900: '#14532d',
         },
-        glass: {
-          light: 'rgba(255, 255, 255, 0.08)',
-          medium: 'rgba(255, 255, 255, 0.12)',
-          heavy: 'rgba(255, 255, 255, 0.16)',
-        },
       },
-      backdropBlur: {
-        xs: '2px',
+      spacing: {
+        '4.5': '18px',
+      },
+      borderRadius: {
+        '2xl': '14px',
+        '3xl': '16px',
       },
       animation: {
         'float': 'float 3s ease-in-out infinite',
@@ -35,6 +38,7 @@ export default {
         'fade-in': 'fadeIn 0.3s ease-out',
         'bounce-gentle': 'bounceGentle 0.6s ease-in-out',
         'shimmer': 'shimmer 2s linear infinite',
+        'enter': 'enter 0.2s ease-out',
       },
       keyframes: {
         float: {
@@ -73,6 +77,10 @@ export default {
         shimmer: {
           '0%': { backgroundPosition: '-200% 0' },
           '100%': { backgroundPosition: '200% 0' },
+        },
+        enter: {
+          from: { opacity: '0', transform: 'scale(0.96)' },
+          to: { opacity: '1', transform: 'scale(1)' },
         },
       },
     },

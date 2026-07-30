@@ -6,6 +6,19 @@ import {
   Target, Calendar, Cookie, Heart, Settings, Eye, X
 } from 'lucide-react';
 
+const menuSpring = {
+  type: 'spring' as const,
+  stiffness: 350,
+  damping: 28,
+  mass: 0.5,
+};
+
+const itemSpring = {
+  type: 'spring' as const,
+  stiffness: 300,
+  damping: 22,
+};
+
 export const ContextMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const {
     contextMenuPos,
@@ -35,28 +48,31 @@ export const ContextMenu: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   return (
     <motion.div
-      className="fixed z-[100] w-[200px] py-1.5 glass rounded-xl overflow-hidden"
+      className="fixed z-[100] w-[200px] py-1.5 glass rounded-2xl overflow-hidden"
       style={{ left: x, top: y }}
-      initial={{ opacity: 0, scale: 0.92, y: -4 }}
+      initial={{ opacity: 0, scale: 0.94, y: -6 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.92, y: -4 }}
-      transition={{ duration: 0.12, ease: [0.16, 1, 0.3, 1] }}
+      exit={{ opacity: 0, scale: 0.94, y: -6 }}
+      transition={menuSpring}
       onClick={(e) => e.stopPropagation()}
     >
       {menuItems.map((item, i) => {
         if (item.type === 'separator') {
-          return <div key={i} className="my-1 mx-3 border-t border-white/5" />;
+          return <div key={i} className="my-1 mx-3 border-t border-white/[0.04]" />;
         }
         const Icon = item.icon;
         return (
-          <button
+          <motion.button
             key={i}
             onClick={item.action}
-            className="w-full px-3 py-2 text-left text-xs text-white/60 hover:bg-white/5 hover:text-white transition-all flex items-center gap-2.5 group"
+            className="w-full px-3 py-2 text-left text-xs text-white/50 hover:text-white/85 transition-colors flex items-center gap-2.5 group"
+            whileHover={{ x: 2 }}
+            whileTap={{ scale: 0.98 }}
+            transition={itemSpring}
           >
-            <Icon size={14} className="opacity-40 group-hover:opacity-70 transition-opacity" />
+            <Icon size={14} className="opacity-30 group-hover:opacity-60 transition-opacity flex-shrink-0" />
             <span>{item.label}</span>
-          </button>
+          </motion.button>
         );
       })}
     </motion.div>
