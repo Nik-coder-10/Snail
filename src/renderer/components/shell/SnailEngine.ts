@@ -1,5 +1,6 @@
 import * as PIXI from 'pixi.js';
 import type { Position, Direction, Edge, AnimationState, EmotionalState } from '../../../shared/types';
+import { COLORS, PHYSICS, SKINS } from '../../styles/tokens';
 
 interface Particle {
   x: number;
@@ -23,17 +24,17 @@ interface TrailSegment {
   width: number;
 }
 
-const BREATHE_SPEED = 0.03;
-const BLINK_INTERVAL_MIN = 2500;
-const BLINK_INTERVAL_MAX = 6000;
-const BLINK_DURATION = 120;
-const DEFAULT_SCALE = 1;
-const GRAVITY = 0.0004;
-const SHELL_INERTIA_STRENGTH = 0.08;
-const BODY_WAVE_SPEED = 0.003;
-const MAX_TRAIL_LENGTH = 40;
-const SLIME_ALPHA = 0.25;
-const CRAWL_SPEED_MULTIPLIER = 0.6;
+const BREATHE_SPEED: number = PHYSICS.BREATHE_SPEED;
+const BLINK_INTERVAL_MIN: number = PHYSICS.BLINK_INTERVAL_MIN;
+const BLINK_INTERVAL_MAX: number = PHYSICS.BLINK_INTERVAL_MAX;
+const BLINK_DURATION: number = PHYSICS.BLINK_DURATION;
+const DEFAULT_SCALE: number = PHYSICS.DEFAULT_SCALE;
+const GRAVITY: number = PHYSICS.GRAVITY;
+const SHELL_INERTIA_STRENGTH: number = PHYSICS.SHELL_INERTIA_STRENGTH;
+const BODY_WAVE_SPEED: number = PHYSICS.BODY_WAVE_SPEED;
+const MAX_TRAIL_LENGTH: number = PHYSICS.MAX_TRAIL_LENGTH;
+const SLIME_ALPHA: number = PHYSICS.SLIME_ALPHA;
+const CRAWL_SPEED_MULTIPLIER: number = PHYSICS.CRAWL_SPEED_MULTIPLIER;
 
 export class SnailEngine {
   private app: PIXI.Application;
@@ -117,16 +118,16 @@ export class SnailEngine {
   private mouthScale = 1;
   private mouthOpenness = 0;
 
-  private skinColor = 0x4ade80;
-  private skinColorLight = 0x86efac;
-  private skinColorDark = 0x22c55e;
-  private shellColor = 0x86efac;
-  private shellColorDark = 0x22c55e;
-  private shellColorLight = 0xa7f3d0;
+  private skinColor: number = COLORS.accent;
+  private skinColorLight: number = COLORS.accentLight;
+  private skinColorDark: number = COLORS.accentDark;
+  private shellColor: number = COLORS.accentLight;
+  private shellColorDark: number = COLORS.accentDark;
+  private shellColorLight: number = COLORS.accentExtraLight;
 
-  private mouseOver = false;
-  private mouseX = 0;
-  private mouseY = 0;
+  private mouseOver: boolean = false;
+  private mouseX: number = 0;
+  private mouseY: number = 0;
 
   private trailPoints: TrailSegment[] = [];
   private isMoving = false;
@@ -142,6 +143,15 @@ export class SnailEngine {
 
   private celebrationTimer = 0;
   private celebrationPhase = 0;
+
+  private shellSettleTimer: number = 0;
+  private shellSettleVelocity: number = 0;
+  private stopBounceTimer: number = 0;
+  private bodyStopSquish: number = 0;
+  private eyeBounceL: number = 0;
+  private eyeBounceR: number = 0;
+  private eyeBounceVL: number = 0;
+  private eyeBounceVR: number = 0;
 
   private width: number;
   private height: number;
@@ -276,7 +286,7 @@ export class SnailEngine {
     const shellCenterY = -bodyHeight * 0.5 - 5 * s;
 
     this.shadow.clear();
-    this.shadow.beginFill(0x000000, 0.1);
+    this.shadow.beginFill(COLORS.black, 0.1);
     this.shadow.ellipse(0, bodyHeight * 0.6, bodyLength * 0.5, 6 * s);
     this.shadow.endFill();
 
@@ -299,17 +309,17 @@ export class SnailEngine {
       const t = i / gradSteps;
       const alpha = 0.04 * (1 - t);
       const r = bodyLength * 0.48 * (1 - t * 0.3);
-      this.bodyMain.beginFill(0xffffff, alpha);
+      this.bodyMain.beginFill(COLORS.white, alpha);
       this.bodyMain.ellipse(bodyLength * 0.15 * (1 - t * 0.5), -bodyHeight * 0.2 * (1 - t), r, bodyHeight * 0.35 * (1 - t * 0.3));
       this.bodyMain.endFill();
     }
 
     this.bodyHighlight.clear();
-    this.bodyHighlight.beginFill(0xffffff, 0.12);
+    this.bodyHighlight.beginFill(COLORS.white, 0.12);
     this.bodyHighlight.ellipse(bodyLength * 0.08, -bodyHeight * 0.2, bodyLength * 0.28, bodyHeight * 0.15);
     this.bodyHighlight.endFill();
 
-    this.bodyHighlight.beginFill(0xffffff, 0.06);
+    this.bodyHighlight.beginFill(COLORS.white, 0.06);
     this.bodyHighlight.ellipse(bodyLength * 0.2, -bodyHeight * 0.28, bodyLength * 0.15, bodyHeight * 0.08);
     this.bodyHighlight.endFill();
 
@@ -333,44 +343,44 @@ export class SnailEngine {
     this.eyeStalkRight.lineTo(eyeRX, eyeY);
 
     this.eyeLeft.clear();
-    this.eyeLeft.beginFill(0xf8faff, 1);
+    this.eyeLeft.beginFill(COLORS.eyeWhite, 1);
     this.eyeLeft.circle(eyeLX, eyeY, eyeRadius);
     this.eyeLeft.endFill();
-    this.eyeLeft.beginFill(0xeef4ff, 0.2);
+    this.eyeLeft.beginFill(COLORS.eyeBlue, 0.2);
     this.eyeLeft.circle(eyeLX, eyeY, eyeRadius * 0.6);
     this.eyeLeft.endFill();
 
     this.eyeRight.clear();
-    this.eyeRight.beginFill(0xf8faff, 1);
+    this.eyeRight.beginFill(COLORS.eyeWhite, 1);
     this.eyeRight.circle(eyeRX, eyeY, eyeRadius);
     this.eyeRight.endFill();
-    this.eyeRight.beginFill(0xeef4ff, 0.2);
+    this.eyeRight.beginFill(COLORS.eyeBlue, 0.2);
     this.eyeRight.circle(eyeRX, eyeY, eyeRadius * 0.6);
     this.eyeRight.endFill();
 
     this.eyeHighlightL.clear();
-    this.eyeHighlightL.beginFill(0xffffff, 0.7);
+    this.eyeHighlightL.beginFill(COLORS.white, 0.7);
     this.eyeHighlightL.circle(eyeLX - eyeRadius * 0.3, eyeY - eyeRadius * 0.3, eyeRadius * 0.35);
     this.eyeHighlightL.endFill();
 
     this.eyeHighlightR.clear();
-    this.eyeHighlightR.beginFill(0xffffff, 0.7);
+    this.eyeHighlightR.beginFill(COLORS.white, 0.7);
     this.eyeHighlightR.circle(eyeRX - eyeRadius * 0.3, eyeY - eyeRadius * 0.3, eyeRadius * 0.35);
     this.eyeHighlightR.endFill();
 
     this.pupilLeft.clear();
-    this.pupilLeft.beginFill(0x1a1a2e, 1);
+    this.pupilLeft.beginFill(COLORS.pupil, 1);
     this.pupilLeft.circle(eyeLX + 1.5 * s, eyeY, 3.5 * s);
     this.pupilLeft.endFill();
-    this.pupilLeft.beginFill(0xffffff, 0.4);
+    this.pupilLeft.beginFill(COLORS.white, 0.4);
     this.pupilLeft.circle(eyeLX + 2.5 * s, eyeY - 1.5 * s, 1.2 * s);
     this.pupilLeft.endFill();
 
     this.pupilRight.clear();
-    this.pupilRight.beginFill(0x1a1a2e, 1);
+    this.pupilRight.beginFill(COLORS.pupil, 1);
     this.pupilRight.circle(eyeRX + 1.5 * s, eyeY, 3.5 * s);
     this.pupilRight.endFill();
-    this.pupilRight.beginFill(0xffffff, 0.4);
+    this.pupilRight.beginFill(COLORS.white, 0.4);
     this.pupilRight.circle(eyeRX + 2.5 * s, eyeY - 1.5 * s, 1.2 * s);
     this.pupilRight.endFill();
 
@@ -454,15 +464,15 @@ export class SnailEngine {
     }
 
     this.shellHighlight.clear();
-    this.shellHighlight.beginFill(0xffffff, 0.15);
+    this.shellHighlight.beginFill(COLORS.white, 0.15);
     this.shellHighlight.ellipse(cx - radius * 0.25, cy - radius * 0.35, radius * 0.3, radius * 0.25);
     this.shellHighlight.endFill();
 
-    this.shellHighlight.beginFill(0xffffff, 0.08);
+    this.shellHighlight.beginFill(COLORS.white, 0.08);
     this.shellHighlight.ellipse(cx - radius * 0.1, cy - radius * 0.5, radius * 0.2, radius * 0.12);
     this.shellHighlight.endFill();
 
-    this.shellBase.lineStyle(2 * s, 0x000000, 0.06);
+    this.shellBase.lineStyle(2 * s, COLORS.black, 0.06);
     this.shellBase.drawEllipse(cx, cy, radius * 0.85, radius * 1.0);
     this.shellBase.lineStyle(0);
   }
@@ -498,7 +508,7 @@ export class SnailEngine {
         this.mouth.lineTo(mx + 5 * s, my + 2 * s);
         break;
       case 'surprised':
-        this.mouth.beginFill(0x1a1a2e, 0.25);
+        this.mouth.beginFill(COLORS.pupil, 0.25);
         this.mouth.ellipse(mx, my + 1 * s, 4 * s, 5 * s);
         this.mouth.endFill();
         break;
@@ -526,11 +536,11 @@ export class SnailEngine {
     if (this.currentEmotion === 'happy' || this.currentEmotion === 'grateful' ||
         this.currentEmotion === 'excited' || this.blushAlpha > 0.01) {
       const alpha = Math.max(0.15, this.blushAlpha);
-      this.blushLeft.beginFill(0xff6b9d, alpha);
+      this.blushLeft.beginFill(COLORS.blush, alpha);
       this.blushLeft.ellipse(bodyLength * 0.15, bodyHeight * 0.12, 6 * s, 4 * s);
       this.blushLeft.endFill();
 
-      this.blushRight.beginFill(0xff6b9d, alpha);
+      this.blushRight.beginFill(COLORS.blush, alpha);
       this.blushRight.ellipse(bodyLength * 0.35, bodyHeight * 0.12, 6 * s, 4 * s);
       this.blushRight.endFill();
     }
@@ -547,10 +557,10 @@ export class SnailEngine {
     const leaf = new PIXI.Graphics();
     const bodyLength = 70 * s;
 
-    leaf.beginFill(0x4ade80, 0.9);
+    leaf.beginFill(COLORS.accent, 0.9);
     leaf.ellipse(bodyLength * 0.55, -5 * s, 10 * s, 6 * s);
     leaf.endFill();
-    leaf.beginFill(0x22c55e, 0.5);
+    leaf.beginFill(COLORS.accentDark, 0.5);
     leaf.ellipse(bodyLength * 0.55, -5 * s, 6 * s, 3 * s);
     leaf.endFill();
     leaf.lineStyle(1 * s, 0x166534, 0.6);
@@ -576,13 +586,13 @@ export class SnailEngine {
     const hand = new PIXI.Graphics();
     const bodyLength = 70 * s;
 
-    hand.beginFill(0xf5d6c6, 0.9);
+    hand.beginFill(COLORS.hand, 0.9);
     hand.circle(bodyLength * 0.55, -bodyLength * 0.45, 8 * s);
     hand.endFill();
-    hand.beginFill(0xf0c8b8, 0.5);
+    hand.beginFill(COLORS.handShadow, 0.5);
     hand.ellipse(bodyLength * 0.5, -bodyLength * 0.48, 5 * s, 4 * s);
     hand.endFill();
-    hand.lineStyle(1 * s, 0xe8b8a8, 0.4);
+    hand.lineStyle(1 * s, COLORS.handDark, 0.4);
     for (let i = 0; i < 4; i++) {
       const angle = (i / 4) * Math.PI * 0.6 - Math.PI * 0.3;
       hand.moveTo(
@@ -613,6 +623,8 @@ export class SnailEngine {
     this.applyShellInertia(dt);
     this.applyEyeAnimations(dt);
     this.applyAntennaSway(dt);
+
+    const prevState = this.currentState;
 
     switch (this.currentState) {
       case 'walking':
@@ -646,6 +658,20 @@ export class SnailEngine {
     this.updateParticles(dt);
     this.updateZZZ(dt);
     this.updateEmotionIndicator();
+
+    if (prevState === 'walking' && this.currentState !== 'walking') {
+      this.bodyStopSquish = PHYSICS.BODY_SQUISH_ON_STOP;
+      this.eyeBounceL = PHYSICS.EYE_BOUNCE_STRENGTH;
+      this.eyeBounceR = PHYSICS.EYE_BOUNCE_STRENGTH * 0.85;
+      this.eyeBounceVL = 0.3;
+      this.eyeBounceVR = 0.25;
+    }
+
+    if (this.bodyStopSquish > 0) {
+      this.bodyStopSquish = this.lerp(this.bodyStopSquish, 0, PHYSICS.BODY_SQUISH_RECOVERY);
+      this.bodyCompression += this.bodyStopSquish;
+    }
+
     this.render();
   }
 
@@ -703,9 +729,22 @@ export class SnailEngine {
       const dy = this.velocity.y * dt * 0.1;
       this.shellLagX = this.lerp(this.shellLagX, -dx * 0.5, SHELL_INERTIA_STRENGTH);
       this.shellLagY = this.lerp(this.shellLagY, -dy * 0.3, SHELL_INERTIA_STRENGTH);
+
+      this.shellSettleTimer = 0;
+      this.shellSettleVelocity = 0;
     } else {
       this.shellLagX = this.lerp(this.shellLagX, 0, 0.06);
       this.shellLagY = this.lerp(this.shellLagY, 0, 0.06);
+
+      this.shellSettleTimer += dt;
+      if (this.shellSettleTimer < 600) {
+        this.shellSettleVelocity = this.shellSettleVelocity * PHYSICS.SHELL_SETTLE_DAMPING
+          + Math.sin(this.shellSettleTimer * 0.012) * 0.08;
+        this.shellLagX += this.shellSettleVelocity;
+        this.shellLagY += Math.sin(this.shellSettleTimer * 0.015 + 0.5) * 0.05;
+      } else {
+        this.shellSettleVelocity = 0;
+      }
     }
 
     const bodySway = Math.sin(this.totalTime * 0.002) * 0.5;
@@ -714,7 +753,10 @@ export class SnailEngine {
     } else if (this.currentState === 'dancing' || this.currentState === 'celebrating') {
       this.shellRotate = this.lerp(this.shellRotate, Math.sin(this.totalTime * 0.005) * 0.1, 0.1);
     } else {
-      this.shellRotate = this.lerp(this.shellRotate, 0, 0.04);
+      const settleRotate = this.shellSettleTimer < 400
+        ? Math.sin(this.shellSettleTimer * 0.01) * 0.015 * (1 - this.shellSettleTimer / 400)
+        : 0;
+      this.shellRotate = this.lerp(this.shellRotate, settleRotate, 0.06);
     }
 
     this.shellBob = this.lerp(this.shellBob, this.bodyCompression * (-2), 0.1);
@@ -776,6 +818,15 @@ export class SnailEngine {
 
     this.eyeStalkSwayL = this.lerp(this.eyeStalkSwayL, sL, 0.08);
     this.eyeStalkSwayR = this.lerp(this.eyeStalkSwayR, sR, 0.08);
+
+    if (this.currentState !== 'walking') {
+      this.eyeBounceVL *= PHYSICS.EYE_BOUNCE_DAMPING;
+      this.eyeBounceVR *= PHYSICS.EYE_BOUNCE_DAMPING;
+
+      const bounceTargetL = this.eyeStalkHeightL + this.eyeBounceL;
+      this.eyeStalkHeightL = this.lerp(this.eyeStalkHeightL, bounceTargetL + this.eyeBounceVL, 0.02);
+      this.eyeStalkHeightR = this.lerp(this.eyeStalkHeightR, bounceTargetL + this.eyeBounceVR, 0.02);
+    }
   }
 
   private applyAntennaSway(dt: number): void {
@@ -904,12 +955,18 @@ export class SnailEngine {
       return;
     }
 
-    const speed = 0.04 + this.rand(0.01, 0.02);
-    const moveX = dx * speed;
-    const moveY = dy * speed;
+    const normX = dx / dist;
+    const normY = dy / dist;
 
-    this.velocity.x = this.lerp(this.velocity.x, moveX, 0.12);
-    this.velocity.y = this.lerp(this.velocity.y, moveY, 0.12);
+    const slowDownDist = PHYSICS.APPROACH_SLOW_DOWN_DIST;
+    const speedMultiplier = Math.min(dist / slowDownDist, 1);
+    const speed = (0.04 + this.rand(0, 0.01)) * Math.max(speedMultiplier, 0.15);
+
+    const desiredVx = normX * speed * dt;
+    const desiredVy = normY * speed * dt;
+
+    this.velocity.x = this.lerp(this.velocity.x, desiredVx, 0.1);
+    this.velocity.y = this.lerp(this.velocity.y, desiredVy, 0.1);
 
     this.position.x += this.velocity.x * dt;
     this.position.y += this.velocity.y * dt;
@@ -926,6 +983,8 @@ export class SnailEngine {
     }
 
     this.blushAlpha = this.lerp(this.blushAlpha, 0, 0.02);
+    this.shellSettleTimer = 0;
+    this.shellSettleVelocity = 0;
   }
 
   private updateSleeping(dt: number): void {
@@ -1177,7 +1236,7 @@ export class SnailEngine {
         life: 40 + Math.random() * 30,
         maxLife: 70,
         size: 3 + Math.random() * 4,
-        color: 0xff4d8a,
+        color: COLORS.heart,
         alpha: 1,
         rotation: Math.random() * Math.PI * 2,
         rotationSpeed: (Math.random() - 0.5) * 0.05,
@@ -1213,12 +1272,12 @@ export class SnailEngine {
       lightenColor(this.skinColor, 40),
       this.shellColor,
       lightenColor(this.shellColor, 30),
-      0xfbbf24,
+      COLORS.accent,
       0x60a5fa,
-      0xf472b6,
-      0xa78bfa,
-      0x34d399,
-      0xffffff,
+      COLORS.blush,
+      COLORS.zzz,
+      COLORS.accentLight,
+      COLORS.white,
     ];
     return palette[Math.floor(Math.random() * palette.length)];
   }
@@ -1548,18 +1607,7 @@ export class SnailEngine {
   }
 
   public setSkin(skin: string): void {
-    const skins: Record<string, { body: number; bodyLight: number; bodyDark: number; shell: number; shellDark: number; shellLight: number }> = {
-      classic: { body: 0x4ade80, bodyLight: 0x86efac, bodyDark: 0x22c55e, shell: 0x86efac, shellDark: 0x22c55e, shellLight: 0xa7f3d0 },
-      golden: { body: 0xfbbf24, bodyLight: 0xfde68a, bodyDark: 0xd97706, shell: 0xfde68a, shellDark: 0xd97706, shellLight: 0xfef3c7 },
-      ocean: { body: 0x60a5fa, bodyLight: 0x93c5fd, bodyDark: 0x2563eb, shell: 0x93c5fd, shellDark: 0x2563eb, shellLight: 0xbfdbfe },
-      sunset: { body: 0xf472b6, bodyLight: 0xf9a8d4, bodyDark: 0xdb2777, shell: 0xf9a8d4, shellDark: 0xdb2777, shellLight: 0xfce7f3 },
-      forest: { body: 0x22c55e, bodyLight: 0x4ade80, bodyDark: 0x15803d, shell: 0x4ade80, shellDark: 0x15803d, shellLight: 0xa7f3d0 },
-      midnight: { body: 0x6366f1, bodyLight: 0x818cf8, bodyDark: 0x4338ca, shell: 0x818cf8, shellDark: 0x4338ca, shellLight: 0xc7d2fe },
-      ruby: { body: 0xef4444, bodyLight: 0xfca5a5, bodyDark: 0xb91c1c, shell: 0xfca5a5, shellDark: 0xb91c1c, shellLight: 0xfecaca },
-      amethyst: { body: 0xa78bfa, bodyLight: 0xc4b5fd, bodyDark: 0x7c3aed, shell: 0xc4b5fd, shellDark: 0x7c3aed, shellLight: 0xddd6fe },
-    };
-
-    const colors = skins[skin] || skins.classic;
+    const colors = SKINS[skin] || SKINS.classic;
     this.skinColor = colors.body;
     this.skinColorLight = colors.bodyLight;
     this.skinColorDark = colors.bodyDark;
