@@ -8,8 +8,6 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let reminderTimer: ReturnType<typeof setInterval> | null = null;
 
-const SNAIL_SIZE = { width: 0, height: 0 };
-
 function createWindow(): void {
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
 
@@ -24,7 +22,6 @@ function createWindow(): void {
     resizable: false,
     skipTaskbar: true,
     hasShadow: false,
-    type: 'toolbar',
     focusable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -40,7 +37,7 @@ function createWindow(): void {
 
   if (process.env.NODE_ENV === 'development' || process.argv.includes('--dev')) {
     mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
+    mainWindow.webContents.openDevTools({ mode: 'bottom' });
   } else {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   }
