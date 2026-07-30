@@ -27,7 +27,7 @@ export default function App() {
     showChat, setShowChat,
     showContextMenu, setShowContextMenu,
     activePanel, setActivePanel,
-    snail, setSnailAnimation, setSnailEmotion,
+    setSnailAnimation, setSnailEmotion,
     messages, addMessage,
     isStreaming, setIsStreaming,
     streamedContent, appendStreamedContent, setStreamedContent,
@@ -120,7 +120,6 @@ export default function App() {
             completed: false,
             task: toolCall.arguments.task as string,
           });
-          // Trigger pomodoro start in the UI
           window.dispatchEvent(new CustomEvent('pomodoro:start', { detail: session }));
           return `Pomodoro timer started for ${(toolCall.arguments.duration as number) || 25} minutes`;
         }
@@ -140,9 +139,8 @@ export default function App() {
           return `Attempted to open: ${name}`;
         }
         case 'search_files': {
-          const query = toolCall.arguments.query as string;
           const files = await window.snailAPI.openFileDialog();
-          return `File search results for "${query}": ${files.length > 0 ? files.join(', ') : 'no files selected'}`;
+          return `File search: ${files.length > 0 ? files.join(', ') : 'no files selected'}`;
         }
         case 'remember': {
           await window.snailAPI.db.memory.save(
@@ -197,10 +195,8 @@ export default function App() {
           window.dispatchEvent(new CustomEvent('snail:celebrate'));
         }
       } else {
-        // Fallback response when no API key
         const content = generateLocalResponse(text);
 
-        // Simulate streaming
         setIsStreaming(true);
         let current = '';
         for (let i = 0; i < content.length; i++) {
@@ -249,7 +245,7 @@ export default function App() {
 
   return (
     <div
-      className="w-full h-full relative"
+      className="w-full h-full fixed inset-0"
       style={{ background: 'transparent' }}
       onClick={() => setShowContextMenu(false)}
     >
@@ -275,27 +271,13 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {activePanel === 'todos' && (
-          <TodoPanel onClose={() => setActivePanel(null)} />
-        )}
-        {activePanel === 'notes' && (
-          <NotesPanel onClose={() => setActivePanel(null)} />
-        )}
-        {activePanel === 'reminders' && (
-          <ReminderPanel onClose={() => setActivePanel(null)} />
-        )}
-        {activePanel === 'pomodoro' && (
-          <PomodoroPanel onClose={() => setActivePanel(null)} />
-        )}
-        {activePanel === 'habits' && (
-          <HabitPanel onClose={() => setActivePanel(null)} />
-        )}
-        {activePanel === 'calendar' && (
-          <CalendarPanel onClose={() => setActivePanel(null)} />
-        )}
-        {activePanel === 'settings' && (
-          <SettingsPanel onClose={() => setActivePanel(null)} />
-        )}
+        {activePanel === 'todos' && <TodoPanel onClose={() => setActivePanel(null)} />}
+        {activePanel === 'notes' && <NotesPanel onClose={() => setActivePanel(null)} />}
+        {activePanel === 'reminders' && <ReminderPanel onClose={() => setActivePanel(null)} />}
+        {activePanel === 'pomodoro' && <PomodoroPanel onClose={() => setActivePanel(null)} />}
+        {activePanel === 'habits' && <HabitPanel onClose={() => setActivePanel(null)} />}
+        {activePanel === 'calendar' && <CalendarPanel onClose={() => setActivePanel(null)} />}
+        {activePanel === 'settings' && <SettingsPanel onClose={() => setActivePanel(null)} />}
       </AnimatePresence>
 
       <NotificationOverlay />

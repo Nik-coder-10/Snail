@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { TodoItem, TodoList } from '../../../shared/types';
+import { X, Plus, Check, Trash2, ListTodo } from 'lucide-react';
+import type { TodoItem } from '../../../shared/types';
 
 interface TodoPanelProps {
   onClose: () => void;
@@ -8,9 +9,7 @@ interface TodoPanelProps {
 
 export const TodoPanel: React.FC<TodoPanelProps> = ({ onClose }) => {
   const [todos, setTodos] = useState<TodoItem[]>([]);
-  const [lists, setLists] = useState<TodoList[]>([]);
   const [newTitle, setNewTitle] = useState('');
-  const [selectedList, setSelectedList] = useState('default');
 
   useEffect(() => {
     loadData();
@@ -18,12 +17,8 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({ onClose }) => {
 
   const loadData = async () => {
     try {
-      const [t, l] = await Promise.all([
-        window.snailAPI.db.todos.getAll(),
-        window.snailAPI.db.lists.getAll(),
-      ]);
+      const t = await window.snailAPI.db.todos.getAll();
       setTodos(t as TodoItem[]);
-      setLists(l as TodoList[]);
     } catch {
       // Handle gracefully
     }
@@ -36,14 +31,14 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({ onClose }) => {
         title: newTitle,
         completed: false,
         priority: 'medium' as const,
-        listId: selectedList,
+        listId: 'default',
       });
       setTodos((prev) => [todo as TodoItem, ...prev]);
       setNewTitle('');
     } catch {
       // Handle
     }
-  }, [newTitle, selectedList]);
+  }, [newTitle]);
 
   const toggleTodo = useCallback(async (id: string, completed: boolean) => {
     try {
@@ -68,57 +63,78 @@ export const TodoPanel: React.FC<TodoPanelProps> = ({ onClose }) => {
 
   return (
     <motion.div
-      className="absolute top-2 left-2 w-[340px] max-h-[260px] glass rounded-2xl flex flex-col overflow-hidden z-50"
-      initial={{ opacity: 0, scale: 0.9, x: -10 }}
+      className="fixed top-3 left-3 w-[360px] max-h-[380px] glass rounded-2xl flex flex-col overflow-hidden z-50 shadow-2xl"
+      initial={{ opacity: 0, scale: 0.92, x: -8 }}
       animate={{ opacity: 1, scale: 1, x: 0 }}
-      exit={{ opacity: 0, scale: 0.9, x: -10 }}
+      exit={{ opacity: 0, scale: 0.92, x: -8 }}
+      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
     >
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5">
-        <span className="text-xs font-medium">To-Do List</span>
-        <button onClick={onClose} className="w-5 h-5 glass-light rounded-full text-[10px]">x</button>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-snail-400/10 flex items-center justify-center">
+            <ListTodo size={14} className="text-snail-400" />
+          </div>
+          <span className="text-sm font-medium text-white/80">To-Do List</span>
+          {pendingTodos.length > 0 && (
+            <span className="badge badge-green">{pendingTodos.length}</span>
+          )}
+        </div>
+        <button onClick={onClose} className="close-btn">
+          <X size={14} />
+        </button>
       </div>
 
-      <div className="px-3 py-2">
-        <div className="flex gap-1.5">
+      <div className="px-3 py-2.5 border-b border-white/5">
+        <div className="flex gap-2">
           <input
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addTodo()}
             placeholder="Add a task..."
-            className="flex-1 glass-input text-xs py-1.5"
+            className="flex-1 glass-input text-xs py-2"
           />
-          <button onClick={addTodo} className="glass-btn-primary text-xs px-3">+</button>
+          <button onClick={addTodo} className="flex items-center justify-center w-9 h-9 rounded-xl bg-snail-500/20 border border-snail-500/25 text-snail-400 transition-all hover:bg-snail-500/30">
+            <Plus size={14} />
+          </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 pb-2 scrollbar-thin space-y-1">
+      <div className="flex-1 overflow-y-auto px-3 py-2 scrollbar-thin space-y-1">
         <AnimatePresence>
+          {todos.length === 0 && (
+            <div className="empty-state">
+              <ListTodo size={28} />
+              <p className="empty-state-text">No tasks yet. Add one above!</p>
+            </div>
+          )}
           {[...pendingTodos, ...completedTodos].map((todo) => (
             <motion.div
               key={todo.id}
-              initial={{ opacity: 0, x: -10 }}
+              initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 10 }}
-              className="flex items-center gap-2 px-2 py-1.5 glass-light rounded-lg group"
+              exit={{ opacity: 0, x: 8, height: 0 }}
+              className="flex items-center gap-2.5 px-3 py-2.5 glass-light rounded-xl group transition-all"
             >
               <button
                 onClick={() => toggleTodo(todo.id, todo.completed)}
-                className={`w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center transition-colors ${
+                className={`w-4.5 h-4.5 rounded-full border flex-shrink-0 flex items-center justify-center transition-all ${
                   todo.completed
                     ? 'bg-snail-500 border-snail-500'
-                    : 'border-white/20 hover:border-white/40'
+                    : 'border-white/20 hover:border-white/40 hover:bg-white/5'
                 }`}
               >
-                {todo.completed && <span className="text-[10px] text-white">{'\u2713'}</span>}
+                {todo.completed && <Check size={10} className="text-white" />}
               </button>
-              <span className={`flex-1 text-xs truncate ${todo.completed ? 'line-through text-white/30' : ''}`}>
+              <span className={`flex-1 text-xs truncate ${
+                todo.completed ? 'line-through text-white/25' : 'text-white/70'
+              }`}>
                 {todo.title}
               </span>
               <button
                 onClick={() => deleteTodo(todo.id)}
-                className="opacity-0 group-hover:opacity-100 text-[10px] text-red-400/60 hover:text-red-400 transition-all"
+                className="opacity-0 group-hover:opacity-100 text-red-400/50 hover:text-red-400 transition-all"
               >
-                x
+                <Trash2 size={12} />
               </button>
             </motion.div>
           ))}

@@ -8,16 +8,16 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let reminderTimer: ReturnType<typeof setInterval> | null = null;
 
-const SNAIL_SIZE = { width: 400, height: 300 };
+const SNAIL_SIZE = { width: 0, height: 0 };
 
 function createWindow(): void {
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
-    width: SNAIL_SIZE.width,
-    height: SNAIL_SIZE.height,
-    x: Math.round(screenW / 2 - SNAIL_SIZE.width / 2),
-    y: Math.round(screenH / 2 - SNAIL_SIZE.height / 2),
+    width: screenW,
+    height: screenH,
+    x: 0,
+    y: 0,
     frame: false,
     transparent: true,
     alwaysOnTop: true,

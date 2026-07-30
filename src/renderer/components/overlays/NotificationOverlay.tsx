@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Bell } from 'lucide-react';
 
 interface Notification {
   id: string;
@@ -32,24 +33,25 @@ export const NotificationOverlay: React.FC = () => {
   }, []);
 
   return (
-    <div className="absolute bottom-2 right-2 space-y-1.5 z-[60] pointer-events-none">
+    <div className="fixed bottom-3 right-3 space-y-2 z-[60] pointer-events-none">
       <AnimatePresence>
         {notifications.map((n) => (
           <motion.div
             key={n.id}
-            initial={{ opacity: 0, x: 50, scale: 0.9 }}
+            initial={{ opacity: 0, x: 60, scale: 0.9 }}
             animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 50, scale: 0.9 }}
-            className="pointer-events-auto w-[220px] p-3 glass rounded-xl"
+            exit={{ opacity: 0, x: 60, scale: 0.9 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            className="pointer-events-auto w-[240px] p-3.5 glass rounded-2xl"
           >
-            <div className="flex items-start gap-2">
-              <div className="w-8 h-8 rounded-lg bg-snail-500/10 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm">{'\uD83D\uDC0C'}</span>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-snail-500/10 flex items-center justify-center flex-shrink-0">
+                <Bell size={14} className="text-snail-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate">{n.title}</div>
+                <div className="text-xs font-medium text-white/70 truncate">{n.title}</div>
                 {n.body && (
-                  <div className="text-[10px] text-white/50 mt-0.5 line-clamp-2">{n.body}</div>
+                  <div className="text-[10px] text-white/40 mt-0.5 line-clamp-2 leading-relaxed">{n.body}</div>
                 )}
               </div>
             </div>

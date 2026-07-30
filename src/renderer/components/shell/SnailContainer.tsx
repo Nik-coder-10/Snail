@@ -1,8 +1,7 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { SnailEngine } from './SnailEngine';
-import type { Position, Edge, Direction } from '../../../shared/types';
 
 interface SnailContainerProps {
   onDoubleClick: () => void;
@@ -18,24 +17,25 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SnailEngine | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, snailX: 0, snailY: 0 });
+  const dragRef = useRef({ dragging: false, startX: 0, startY: 0 });
   const autoMoveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const interactionTimerRef = useRef<number>(Date.now());
-  const [isIdle, setIsIdle] = useState(false);
+  const sizeRef = useRef({ width: window.innerWidth, height: window.innerHeight });
 
   const {
     snail, setSnailPosition, setSnailAnimation,
-    setSnailEmotion, setSnailDirection, setSnailEdge,
-    setSnailDragging, setSnailVisible, setSnailSleeping,
+    setSnailEmotion, setSnailDirection,
+    setSnailDragging, setSnailSleeping, setSnailVisible,
   } = useStore();
-
-  const width = 400;
-  const height = 300;
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const engine = new SnailEngine(canvasRef.current, width, height);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    sizeRef.current = { width: w, height: h };
+
+    const engine = new SnailEngine(canvasRef.current, w, h);
     engineRef.current = engine;
     engine.spawnAnimation();
 
@@ -52,15 +52,33 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
     let animationFrame = requestAnimationFrame(tick);
 
     const handleCelebrate = () => {
-      engine.celebrateAnimation();
+      if (engineRef.current) engineRef.current.celebrateAnimation();
     };
 
     const handlePomodoro = () => {
-      engine.danceAnimation();
+      if (engineRef.current) engineRef.current.danceAnimation();
+    };
+
+    const handleFeed = () => {
+      if (engineRef.current) engineRef.current.feed();
+    };
+
+    const handlePet = () => {
+      if (engineRef.current) engineRef.current.pet();
     };
 
     window.addEventListener('snail:celebrate', handleCelebrate);
     window.addEventListener('pomodoro:start', handlePomodoro);
+    window.addEventListener('snail:feed', handleFeed);
+    window.addEventListener('snail:pet', handlePet);
+
+    const handleResize = () => {
+      const nw = window.innerWidth;
+      const nh = window.innerHeight;
+      sizeRef.current = { width: nw, height: nh };
+      engineRef.current?.resize(nw, nh);
+    };
+    window.addEventListener('resize', handleResize);
 
     startAutoMovement();
 
@@ -68,6 +86,9 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
       cancelAnimationFrame(animationFrame);
       window.removeEventListener('snail:celebrate', handleCelebrate);
       window.removeEventListener('pomodoro:start', handlePomodoro);
+      window.removeEventListener('snail:feed', handleFeed);
+      window.removeEventListener('snail:pet', handlePet);
+      window.removeEventListener('resize', handleResize);
       if (autoMoveRef.current) clearTimeout(autoMoveRef.current);
       engine.destroy();
     };
@@ -77,7 +98,8 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
   const startAutoMovement = useCallback(() => {
     const move = () => {
       if (!engineRef.current || snail.isDragging || snail.animation === 'sleeping' ||
-          snail.animation === 'spawning' || snail.animation === 'hiding') {
+          snail.animation === 'spawning' || snail.animation === 'hiding' ||
+          snail.animation === 'eating' || snail.animation === 'petting') {
         autoMoveRef.current = setTimeout(move, 2000);
         return;
       }
@@ -90,49 +112,27 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
         return;
       }
 
-      if (snail.animation === 'waving' ||
-          snail.animation === 'dancing' || snail.animation === 'celebrating') {
+      if (snail.animation === 'waving' || snail.animation === 'dancing' ||
+          snail.animation === 'celebrating' || snail.animation === 'thinking') {
         autoMoveRef.current = setTimeout(move, 3000);
         return;
       }
 
-      const currentPos = engineRef.current.getPosition();
-      const margin = 40;
-      const stepSize = 60 + Math.random() * 80;
+      const { width, height } = sizeRef.current;
+      const margin = 60;
+      const step = 80 + Math.random() * 120;
 
-      let targetX = currentPos.x;
-      let targetY = currentPos.y;
+      const targetX = margin + Math.random() * (width - margin * 2);
+      const targetY = margin + Math.random() * (height - margin * 2);
 
-      // Random walk within bounds
-      const choices: Array<{ x: number; y: number }> = [];
+      engineRef.current.moveTo(targetX, targetY);
 
-      // Horizontal moves (along bottom area)
-      if (currentPos.x > margin) choices.push({ x: currentPos.x - stepSize, y: height - 60 + Math.random() * 30 });
-      if (currentPos.x < width - margin) choices.push({ x: currentPos.x + stepSize, y: height - 60 + Math.random() * 30 });
-
-      // Vertical moves
-      if (currentPos.y > margin) choices.push({ x: currentPos.x + (Math.random() - 0.5) * 40, y: currentPos.y - stepSize * 0.5 });
-      if (currentPos.y < height - margin) choices.push({ x: currentPos.x + (Math.random() - 0.5) * 40, y: currentPos.y + stepSize * 0.5 });
-
-      if (choices.length > 0) {
-        const choice = choices[Math.floor(Math.random() * choices.length)];
-
-        // Clamp within bounds
-        targetX = Math.max(margin, Math.min(width - margin, choice.x));
-        targetY = Math.max(margin, Math.min(height - margin, choice.y));
-
-        const dist = Math.hypot(targetX - currentPos.x, targetY - currentPos.y);
-        const duration = dist * 15 * (1 / (snail.personality.responseSpeed || 1));
-
-        engineRef.current.moveTo(targetX, targetY, Math.max(1500, duration));
-      }
-
-      const nextDelay = 3000 + Math.random() * 4000;
+      const nextDelay = 3000 + Math.random() * 5000;
       autoMoveRef.current = setTimeout(move, nextDelay);
     };
 
     autoMoveRef.current = setTimeout(move, 1000);
-  }, [snail.isDragging, snail.animation, snail.personality.responseSpeed, setSnailSleeping]);
+  }, [snail.isDragging, snail.animation, setSnailSleeping]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!engineRef.current) return;
@@ -148,14 +148,11 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
       dragging: true,
       startX: e.clientX,
       startY: e.clientY,
-      snailX: e.clientX,
-      snailY: e.clientY,
     };
 
     setSnailDragging(true);
     setSnailAnimation('idle');
     setSnailEmotion('curious');
-
     engineRef.current.lookAt(e.clientX, e.clientY);
     engineRef.current.setMouseOver(true);
 
@@ -163,22 +160,23 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
       if (engineRef.current) {
         engineRef.current.teleportTo(ev.clientX, ev.clientY);
       }
+      setSnailPosition({ x: ev.clientX, y: ev.clientY });
     };
 
-    const onMouseUp = () => {
+    const onMouseUp = (ev: MouseEvent) => {
       dragRef.current.dragging = false;
       setSnailDragging(false);
       if (engineRef.current) {
         engineRef.current.setMouseOver(false);
       }
 
-      const deltaX = Math.abs(dragRef.current.startX - dragRef.current.snailX);
-      const deltaY = Math.abs(dragRef.current.startY - dragRef.current.snailY);
+      const deltaX = Math.abs(dragRef.current.startX - ev.clientX);
+      const deltaY = Math.abs(dragRef.current.startY - ev.clientY);
 
-      if (deltaX < 3 && deltaY < 3) {
+      if (deltaX < 5 && deltaY < 5) {
         setSnailEmotion('happy');
-        startAutoMovement();
       }
+      startAutoMovement();
 
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
@@ -186,7 +184,7 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [snail.isSleeping, setSnailDragging, setSnailAnimation, setSnailEmotion, setSnailSleeping, startAutoMovement]);
+  }, [snail.isSleeping, setSnailDragging, setSnailAnimation, setSnailEmotion, setSnailSleeping, setSnailPosition, startAutoMovement]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -221,7 +219,7 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
   return (
     <motion.div
       ref={containerRef}
-      className="absolute inset-0 cursor-grab active:cursor-grabbing"
+      className="fixed inset-0 cursor-grab active:cursor-grabbing"
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}
@@ -233,13 +231,7 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
     >
       <canvas
         ref={canvasRef}
-        width={width}
-        height={height}
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'block',
-        }}
+        className="w-full h-full block"
       />
     </motion.div>
   );

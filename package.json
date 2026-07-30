@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:main\"",
     "dev:renderer": "vite",
-    "dev:main": "tsc -p tsconfig.main.json && electron dist/main/index.js",
+    "dev:main": "tsc -p tsconfig.main.json && electron dist/main/index.js --dev",
     "build:renderer": "tsc -p tsconfig.renderer.json && vite build",
     "build:main": "tsc -p tsconfig.main.json",
     "build": "npm run build:main && npm run build:renderer",
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "framer-motion": "^11.0.0",
+    "lucide-react": "^1.28.0",
     "openai": "^4.50.0",
     "pixi.js": "^8.0.0",
     "react": "^18.3.0",
@@ -57,13 +58,22 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "linux": {
-      "target": ["AppImage", "deb"]
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   }
 }
