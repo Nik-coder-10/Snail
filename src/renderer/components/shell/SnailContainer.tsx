@@ -43,9 +43,12 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
     const h = window.innerHeight;
     sizeRef.current = { width: w, height: h };
 
-    const engine = new SnailEngine(canvasRef.current, w, h);
+    const engine = new SnailEngine(w, h);
     engineRef.current = engine;
-    engine.spawnAnimation();
+
+    engine.initialize(canvasRef.current).then(() => {
+      engine.spawnAnimation();
+    });
 
     const tick = () => {
       if (engineRef.current) {

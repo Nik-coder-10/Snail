@@ -10,23 +10,19 @@ let reminderTimer: ReturnType<typeof setInterval> | null = null;
 
 function createWindow(): void {
   const { width: screenW, height: screenH } = screen.getPrimaryDisplay().workAreaSize;
-  const winW = 500;
-  const winH = 500;
-  const winX = screenW - winW - 20;
-  const winY = screenH - winH - 60;
 
   mainWindow = new BrowserWindow({
-    width: winW,
-    height: winH,
-    x: winX,
-    y: winY,
+    width: screenW,
+    height: screenH,
+    x: 0,
+    y: 0,
     frame: false,
     transparent: false,
     backgroundColor: '#0f0f13',
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: true,
-    hasShadow: true,
+    hasShadow: false,
     focusable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),

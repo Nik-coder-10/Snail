@@ -159,7 +159,7 @@ export class SnailEngine {
   private bodyBaseY = 0;
   private sleepZZTimer = 0;
 
-  constructor(canvas: HTMLCanvasElement, width: number, height: number) {
+  constructor(width: number, height: number) {
     this.width = width;
     this.height = height;
 
@@ -196,64 +196,66 @@ export class SnailEngine {
     this.antennaRight = new PIXI.Graphics();
 
     this.position = { x: width / 2, y: height * 0.7 };
-
-    this.init(canvas, width, height);
   }
 
-  async init(canvas: HTMLCanvasElement, width: number, height: number): Promise<void> {
-    await this.app.init({
-      canvas,
-      width,
-      height,
-      backgroundAlpha: 0,
-      antialias: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 2),
-      autoDensity: true,
-    });
+  async initialize(canvas: HTMLCanvasElement): Promise<void> {
+    try {
+      await this.app.init({
+        canvas,
+        width: this.width,
+        height: this.height,
+        backgroundAlpha: 0,
+        antialias: true,
+        resolution: Math.min(window.devicePixelRatio || 1, 2),
+        autoDensity: true,
+      });
 
-    this.container.sortableChildren = true;
+      this.container.sortableChildren = true;
 
-    this.slimeTrail.zIndex = 0;
-    this.shadow.zIndex = 2;
-    this.snailContainer.zIndex = 10;
-    this.particlesGfx.zIndex = 5;
-    this.zzzContainer.zIndex = 20;
-    this.emotionIndicator.zIndex = 15;
+      this.slimeTrail.zIndex = 0;
+      this.shadow.zIndex = 2;
+      this.snailContainer.zIndex = 10;
+      this.particlesGfx.zIndex = 5;
+      this.zzzContainer.zIndex = 20;
+      this.emotionIndicator.zIndex = 15;
 
-    this.snailContainer.addChild(this.shadow);
-    this.snailContainer.addChild(this.bodyFoot);
-    this.snailContainer.addChild(this.bodyMain);
-    this.snailContainer.addChild(this.bodyHighlight);
-    this.snailContainer.addChild(this.antennaLeft);
-    this.snailContainer.addChild(this.antennaRight);
-    this.snailContainer.addChild(this.shellGroup);
-    this.snailContainer.addChild(this.feelerLeft);
-    this.snailContainer.addChild(this.feelerRight);
-    this.snailContainer.addChild(this.eyeStalkLeft);
-    this.snailContainer.addChild(this.eyeStalkRight);
-    this.snailContainer.addChild(this.eyeLeft);
-    this.snailContainer.addChild(this.eyeRight);
-    this.snailContainer.addChild(this.eyeHighlightL);
-    this.snailContainer.addChild(this.eyeHighlightR);
-    this.snailContainer.addChild(this.pupilLeft);
-    this.snailContainer.addChild(this.pupilRight);
-    this.snailContainer.addChild(this.blushLeft);
-    this.snailContainer.addChild(this.blushRight);
-    this.snailContainer.addChild(this.mouth);
+      this.snailContainer.addChild(this.shadow);
+      this.snailContainer.addChild(this.bodyFoot);
+      this.snailContainer.addChild(this.bodyMain);
+      this.snailContainer.addChild(this.bodyHighlight);
+      this.snailContainer.addChild(this.antennaLeft);
+      this.snailContainer.addChild(this.antennaRight);
+      this.snailContainer.addChild(this.shellGroup);
+      this.snailContainer.addChild(this.feelerLeft);
+      this.snailContainer.addChild(this.feelerRight);
+      this.snailContainer.addChild(this.eyeStalkLeft);
+      this.snailContainer.addChild(this.eyeStalkRight);
+      this.snailContainer.addChild(this.eyeLeft);
+      this.snailContainer.addChild(this.eyeRight);
+      this.snailContainer.addChild(this.eyeHighlightL);
+      this.snailContainer.addChild(this.eyeHighlightR);
+      this.snailContainer.addChild(this.pupilLeft);
+      this.snailContainer.addChild(this.pupilRight);
+      this.snailContainer.addChild(this.blushLeft);
+      this.snailContainer.addChild(this.blushRight);
+      this.snailContainer.addChild(this.mouth);
 
-    this.shellGroup.addChild(this.shellBase);
-    this.shellGroup.addChild(this.shellSpiral);
-    this.shellGroup.addChild(this.shellHighlight);
+      this.shellGroup.addChild(this.shellBase);
+      this.shellGroup.addChild(this.shellSpiral);
+      this.shellGroup.addChild(this.shellHighlight);
 
-    this.container.addChild(this.slimeTrail);
-    this.container.addChild(this.particlesGfx);
-    this.container.addChild(this.snailContainer);
-    this.container.addChild(this.zzzContainer);
-    this.container.addChild(this.emotionIndicator);
+      this.container.addChild(this.slimeTrail);
+      this.container.addChild(this.particlesGfx);
+      this.container.addChild(this.snailContainer);
+      this.container.addChild(this.zzzContainer);
+      this.container.addChild(this.emotionIndicator);
 
-    this.app.stage.addChild(this.container);
-    this.app.ticker.add(() => this.update());
-    this.drawSnail();
+      this.app.stage.addChild(this.container);
+      this.drawSnail();
+      this.app.ticker.add(() => this.update());
+    } catch (err) {
+      console.error('[SnailEngine] init failed:', err);
+    }
   }
 
   private lerp(current: number, target: number, speed: number): number {
