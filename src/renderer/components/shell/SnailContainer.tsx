@@ -66,8 +66,11 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
       if (engineRef.current) engineRef.current.danceAnimation();
     };
 
-    const handleFeed = () => {
-      if (engineRef.current) engineRef.current.feed();
+    const handleFeed = (e?: Event) => {
+      if (!engineRef.current) return;
+      const foodType = (e as CustomEvent | undefined)?.detail?.foodType;
+      if (foodType) engineRef.current.feed(foodType);
+      else engineRef.current.feed();
     };
 
     const handlePet = () => {

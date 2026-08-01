@@ -1,5 +1,6 @@
 import type { Position, Direction, AnimationState, EmotionalState } from '../../../shared/types';
 import { COLORS, PHYSICS, SKINS } from '../../styles/tokens';
+import { interactionSounds } from '../../audio/interactionSounds';
 
 interface Particle {
   x: number; y: number; vx: number; vy: number;
@@ -86,6 +87,51 @@ const IDLE_BEHAVIORS: IdleBehavior[] = [
   { name: 'inspect',    min: 1600, max: 3000 },
   { name: 'settle',     min: 2000, max: 4000 },
   { name: 'comeOut',    min: 1400, max: 2400 },
+];
+
+// ── Food types (real pet-snail foods) ──
+type FoodType = 'leaf' | 'carrot' | 'fruit' | 'mushroom' | 'flower';
+
+interface FoodConfig {
+  name: string;
+  chewDuration: number;
+  chewInterval: number;
+  chewOpen: number;
+  crumbColor: number;
+  color: number;
+  colorDark: number;
+  inspect: boolean;
+  smell: boolean;
+  excitement: number;
+  sound: 'munch' | 'crunch' | 'softMunch';
+}
+
+const FOODS: Record<FoodType, FoodConfig> = {
+  leaf:     { name: 'Leaf',     chewDuration: 3200, chewInterval: 190, chewOpen: 0.45, crumbColor: 0x22c55e, color: 0x4ade80, colorDark: 0x15803d, inspect: false, smell: false, excitement: 0.3, sound: 'munch' },
+  carrot:   { name: 'Carrot',   chewDuration: 2500, chewInterval: 150, chewOpen: 0.6,  crumbColor: 0xfb923c, color: 0xf97316, colorDark: 0x9a3412, inspect: false, smell: false, excitement: 0.45, sound: 'crunch' },
+  fruit:    { name: 'Fruit',    chewDuration: 2000, chewInterval: 170, chewOpen: 0.55, crumbColor: 0xf472b6, color: 0xfb7185, colorDark: 0xbe123c, inspect: false, smell: false, excitement: 0.85, sound: 'softMunch' },
+  mushroom: { name: 'Mushroom', chewDuration: 2400, chewInterval: 200, chewOpen: 0.5,  crumbColor: 0xd6d3d1, color: 0xa8a29e, colorDark: 0x57534e, inspect: true,  smell: false, excitement: 0.5,  sound: 'softMunch' },
+  flower:   { name: 'Flower',   chewDuration: 2200, chewInterval: 180, chewOpen: 0.5,  crumbColor: 0xc4b5fd, color: 0xc084fc, colorDark: 0x7e22ce, inspect: false, smell: true,  excitement: 0.65, sound: 'softMunch' },
+};
+
+const FOOD_TYPES: FoodType[] = ['leaf', 'carrot', 'fruit', 'mushroom', 'flower'];
+
+// ── Petting variations (never replay the same one twice in a row) ──
+type PetVariation =
+  | 'happyWiggle'
+  | 'closeEyes'
+  | 'stretchNeck'
+  | 'spinShell'
+  | 'tinyBounce'
+  | 'raiseStalks'
+  | 'blush'
+  | 'tinyLaugh'
+  | 'hidePeek'
+  | 'rollToward';
+
+const PET_VARIATIONS: PetVariation[] = [
+  'happyWiggle', 'closeEyes', 'stretchNeck', 'spinShell', 'tinyBounce',
+  'raiseStalks', 'blush', 'tinyLaugh', 'hidePeek', 'rollToward',
 ];
 
 export class SnailEngine {
@@ -202,12 +248,40 @@ export class SnailEngine {
   private sleepZZTimer = 0;
   private foodAlpha = 0;
   private foodScale = 0;
-  private petPhase = 0;
-  private petTimer = 0;
-  private petHandAlpha = 0;
-  private petReaction = 0;
   private celebrationTimer = 0;
   private celebrationPhase = 0;
+
+  // ── Feeding state ──
+  private foodType: FoodType = 'leaf';
+  private lastFoodType: FoodType | null = null;
+  private chewPhase = 0;
+  private lastChewCycle = -1;
+  private swallowDone = false;
+  private biteDone = false;
+  private burpDone = false;
+  private yawnedAfterMeal = false;
+  private foodRot = 0;
+  private foodBob = 0;
+  private fullness = 0;
+  private foodGulpFlash = 0;
+
+  // ── Petting state ──
+  private petVariation: PetVariation = 'happyWiggle';
+  private lastPetVariation: PetVariation | null = null;
+  private petStrokeTimer = 0;
+  private petStrokeCount = 0;
+  private petHandAlpha = 0;
+  private petHandX = 0;
+  private petHandY = 0;
+  private petBlinkOnce = false;
+  private petRelaxDone = false;
+  private affectionTimer = 0;
+  private affectionWaveTimer = 0;
+
+  // ── Expression fields ──
+  private eyeHappy = 0;
+  private eyeWide = 0;
+  private smileStrength = 0;
 
   private isDragging = false;
 
@@ -283,9 +357,57 @@ export class SnailEngine {
     }
     this.bodyCompress = damp(this.bodyCompress, 0, 4, dt / 1000);
 
+    // post-petting affectionate follow-up: keep smiling, follow the cursor
+    this.updateAffection(dt);
+
     this.updateTrail(dt);
     this.updateParticles(dt);
     this.updateZZZ(dt);
+  }
+
+  private updateAffection(dt: number): void {
+    if (this.affectionTimer <= 0) {
+      if (this.currentState === 'happy') {
+        this.eyeHappy = damp(this.eyeHappy, 0, 3, dt / 1000);
+        this.smileStrength = damp(this.smileStrength, 0, 3, dt / 1000);
+      }
+      return;
+    }
+    if (this.currentState !== 'happy' && this.currentState !== 'idle') {
+      this.affectionTimer = 0;
+      return;
+    }
+    this.affectionTimer -= dt;
+    this.eyeHappy = damp(this.eyeHappy, 0.5, 3, dt / 1000);
+    this.smileStrength = damp(this.smileStrength, 0.4, 3, dt / 1000);
+    this.blushAlpha = damp(this.blushAlpha, 0.12, 3, dt / 1000);
+
+    // occasionally gives a gentle happy wave of the stalks
+    if (this.affectionWaveTimer > 0) {
+      this.affectionWaveTimer -= dt;
+      this.stalkSwayL = damp(this.stalkSwayL, Math.sin(this.totalTime * 0.04) * 0.5, 5, dt / 1000);
+      this.stalkSwayR = damp(this.stalkSwayR, Math.sin(this.totalTime * 0.04 + 0.8) * 0.5, 5, dt / 1000);
+    } else if (Math.random() < 0.001 * (dt / 16.6)) {
+      this.affectionWaveTimer = 700 + Math.random() * 400;
+    }
+
+    // gaze toward the cursor while affectionate
+    if (this.lastInteractPos) {
+      const dx = this.lastInteractPos.x - this.position.x;
+      const dy = this.lastInteractPos.y - this.position.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 30) {
+        this.headLookTarget(dx / dist, dy / dist, 0.4);
+        // occasionally follow the cursor with a tiny creep
+        if (Math.random() < 0.004 * (dt / 16.6)) {
+          this.moveTo(
+            this.lastInteractPos.x + rand(-30, 30),
+            this.lastInteractPos.y + rand(-30, 30),
+          );
+        }
+      }
+    }
+    if (Math.random() < 0.002 * (dt / 16.6)) this.spawnHearts(1);
   }
 
   // ═══════════════════════════════════════════════
@@ -488,6 +610,9 @@ export class SnailEngine {
   private updateHead(dt: number): void {
     const dtS = dt / 1000;
 
+    // interaction states control the head directly
+    if (this.currentState === 'eating' || this.currentState === 'petting') return;
+
     // head follows crawl wave + look targets
     const wave = Math.sin(this.crawlPhase + 0.5) * this.crawlAmp * 0.35;
 
@@ -567,6 +692,9 @@ export class SnailEngine {
 
   private updateEyeStalks(dt: number): void {
     const dtS = dt / 1000;
+
+    // interaction states control the stalks directly
+    if (this.currentState === 'eating' || this.currentState === 'petting') return;
 
     let targetLen = 1;
     if (this.currentState === 'sleeping' || this.currentEmotion === 'sleepy') {
@@ -765,77 +893,438 @@ export class SnailEngine {
 
   // ── Eating ──
   private updateEating(dt: number): void {
-    if (this.stateTime < 600) {
-      this.foodScale = this.stateTime / 600;
-      this.foodAlpha = Math.min(1, this.stateTime / 300);
-      this.headLookY = -0.6;  // look down at food
-      this.headX = 4;          // stretch toward food
-    } else if (this.stateTime < 4000) {
-      this.mouthOpenness = damp(this.mouthOpenness, 0.3 + Math.sin(this.stateTime * 0.04) * 0.1, 8, dt / 1000);
-      this.bodyCompress = 0.02 + Math.sin(this.stateTime * 0.03) * 0.01;
-      this.blushAlpha = damp(this.blushAlpha, 0.2, 2, dt / 1000);
-      if (this.stateTime > 1000 && this.stateTime < 1100) this.spawnParticles(3, 'sparkle');
-    } else if (this.stateTime < 5000) {
-      this.foodAlpha = damp(this.foodAlpha, 0, 3, dt / 1000);
-      this.mouthOpenness = damp(this.mouthOpenness, 0, 5, dt / 1000);
-      this.blushAlpha = damp(this.blushAlpha, 0.3, 2, dt / 1000);
+    const dtS = dt / 1000;
+    const t = this.stateTime;
+    const food = FOODS[this.foodType];
+
+    const noticeEnd = 650;
+    const approachEnd = 1250;
+    const inspectEnd = food.inspect || food.smell ? approachEnd + 900 : approachEnd;
+    const biteEnd = inspectEnd + 320;
+    const chewEnd = biteEnd + food.chewDuration;
+    const swallowEnd = chewEnd + 450;
+    const contentEnd = swallowEnd + 900;
+    const finishAt = contentEnd + 600;
+
+    // Food gently bobs in place while waiting
+    this.foodBob = Math.sin(this.totalTime * 0.004) * 1.5;
+    this.foodRot = Math.sin(this.totalTime * 0.003) * 0.06;
+
+    // Wide, excited, food-focused eyes the whole way through
+    this.eyeWide = damp(this.eyeWide, 1, 4, dtS);
+    this.eyeHappy = damp(this.eyeHappy, 0, 3, dtS);
+    this.pupilX = damp(this.pupilX, 3, 5, dtS);
+    this.pupilY = damp(this.pupilY, 2.5, 5, dtS);
+
+    if (t < noticeEnd) {
+      // 1. FOOD APPEARS + NOTICE: eyes lock on, stalks extend, head stretches
+      const e = this.easeOut(t / noticeEnd);
+      this.foodScale = 0.4 + e * 0.6;
+      this.foodAlpha = Math.min(1, t / 280);
+      this.headX = damp(this.headX, 4, 4, dtS);
+      this.headY = damp(this.headY, -1, 4, dtS);
+      this.headLookY = damp(this.headLookY, -0.5, 5, dtS);
+      this.headLookX = damp(this.headLookX, 0.6, 5, dtS);
+      this.stalkLenL = damp(this.stalkLenL, 1.25, 4, dtS);
+      this.stalkLenR = damp(this.stalkLenR, 1.25, 4, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.2, 2, dtS);
+    } else if (t < approachEnd) {
+      // 2. CRAWLS CLOSER: leans in, stretches neck toward the food
+      const e = (t - noticeEnd) / (approachEnd - noticeEnd);
+      this.leanForward = damp(this.leanForward, e * 3.5, 4, dtS);
+      this.bodyStretch = damp(this.bodyStretch, 1 + e * 0.06, 4, dtS);
+      this.headX = damp(this.headX, 6, 4, dtS);
+      this.headY = damp(this.headY, -0.5, 4, dtS);
+      this.headLookY = damp(this.headLookY, -0.7, 5, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0.02, 4, dtS);
+      // excited stalk bob
+      this.stalkLenL = damp(this.stalkLenL, 1.3, 4, dtS);
+      this.stalkLenR = damp(this.stalkLenR, 1.3, 4, dtS);
+      this.stalkBounceVL += Math.sin(this.totalTime * 0.01) * 0.5 * dtS;
+      this.stalkBounceVR += Math.sin(this.totalTime * 0.01 + 1) * 0.5 * dtS;
+    } else if (t < inspectEnd) {
+      if (food.inspect) {
+        // 3a. MUSHROOM: curious inspection — tilt head, wave stalks near the food
+        this.headRot = damp(this.headRot, Math.sin(this.totalTime * 0.008) * 0.18, 4, dtS);
+        this.headX = damp(this.headX, 5 + Math.sin(this.totalTime * 0.01) * 1.5, 3, dtS);
+        this.headY = damp(this.headY, -1.5 + Math.sin(this.totalTime * 0.012) * 0.8, 3, dtS);
+        this.headLookX = damp(this.headLookX, 0.4, 3, dtS);
+        this.headLookY = damp(this.headLookY, -0.4, 3, dtS);
+        this.stalkSwayL = damp(this.stalkSwayL, Math.sin(this.totalTime * 0.012) * 0.5, 4, dtS);
+        this.stalkSwayR = damp(this.stalkSwayR, Math.sin(this.totalTime * 0.012 + 1) * 0.5, 4, dtS);
+        this.stalkLenL = damp(this.stalkLenL, 1.1, 4, dtS);
+        this.stalkLenR = damp(this.stalkLenR, 1.1, 4, dtS);
+      } else {
+        // 3b. FLOWER: smells before eating — leans in, gentle sniffs
+        this.headX = damp(this.headX, 7, 3, dtS);
+        this.headY = damp(this.headY, -1 + Math.sin(this.totalTime * 0.02) * 0.8, 3, dtS);
+        this.headLookY = damp(this.headLookY, -0.8, 4, dtS);
+        this.bodySquash = damp(this.bodySquash, 0.96 + Math.sin(this.totalTime * 0.02) * 0.03, 5, dtS);
+        this.stalkLenL = damp(this.stalkLenL, 1.05, 4, dtS);
+        this.stalkLenR = damp(this.stalkLenR, 1.05, 4, dtS);
+        if (Math.floor(this.totalTime / 450) !== this.lastChewCycle) {
+          this.lastChewCycle = Math.floor(this.totalTime / 450);
+          interactionSounds.play('sniff');
+        }
+      }
+    } else if (t < biteEnd) {
+      // 4. BITE: mouth opens wide, snaps forward, food nudges back
+      this.mouthOpenness = damp(this.mouthOpenness, 1, 10, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0.05, 6, dtS);
+      this.headX = damp(this.headX, 6.5, 6, dtS);
+      this.headY = damp(this.headY, 1, 6, dtS);
+      this.foodScale = damp(this.foodScale, 0.92, 6, dtS);
+      this.foodBob = -3;
+      if (!this.biteDone && t > biteEnd - 60) {
+        this.biteDone = true;
+        interactionSounds.play('munch');
+        this.spawnParticles(3, 'sparkle');
+      }
+    } else if (t < chewEnd) {
+      // 5. CHEWING: rhythmic bite, body wiggles, shell bounces with each chew, crumbs fall
+      this.chewPhase += dt;
+      const cycle = Math.floor(this.chewPhase / food.chewInterval);
+      if (cycle !== this.lastChewCycle) {
+        this.lastChewCycle = cycle;
+        const chewT = Math.min(1, this.chewPhase / food.chewDuration);
+        interactionSounds.play(food.sound);
+        this.spawnCrumbs(food);
+        this.shellPos.vy -= 26; // shell bounces with each chew
+        this.bodyCompress = 0.05;
+        this.bodySquash = damp(this.bodySquash, 0.92, 6, dtS);
+        // food slowly disappears bite by bite
+        this.foodScale = Math.max(0.15, 1 - chewT * 0.85);
+        if (food.excitement > 0.7 && Math.random() < 0.4) this.spawnParticles(1, 'sparkle');
+      }
+      // chewing mouth: pulses open and shut
+      const chewP = (this.chewPhase % food.chewInterval) / food.chewInterval;
+      this.mouthOpenness = damp(this.mouthOpenness, 0.3 + Math.sin(chewP * Math.PI) * food.chewOpen, 12, dtS);
+      this.headY = damp(this.headY, Math.sin(chewP * Math.PI) * 0.8, 6, dtS);
+      this.bodySquash = damp(this.bodySquash, 0.95 + Math.sin(chewP * Math.PI) * 0.03, 6, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.3, 3, dtS);
+    } else if (t < swallowEnd) {
+      // 6. SWALLOW: closes mouth, gulps food down, satisfied
+      this.mouthOpenness = damp(this.mouthOpenness, 0, 8, dtS);
+      this.foodAlpha = damp(this.foodAlpha, 0, 3, dtS);
+      this.foodScale = damp(this.foodScale, 0, 4, dtS);
+      this.headX = damp(this.headX, 2, 4, dtS);
+      this.headY = damp(this.headY, -0.5, 4, dtS);
+      this.bodySquash = damp(this.bodySquash, 0.98, 5, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0.04, 5, dtS);
+      this.foodGulpFlash = Math.max(0, this.foodGulpFlash - dt * 0.004);
+      if (!this.swallowDone) {
+        this.swallowDone = true;
+        interactionSounds.play('gulp');
+        this.blushAlpha = 0.4;
+      }
+    } else if (t < contentEnd) {
+      // 7. SATISFIED CONTENTMENT: happy smile, slow satisfied blink
+      this.eyeHappy = damp(this.eyeHappy, 1, 3, dtS);
+      this.smileStrength = damp(this.smileStrength, 1, 3, dtS);
+      this.eyeWide = damp(this.eyeWide, 0, 3, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.35, 3, dtS);
+      this.bodySquash = damp(this.bodySquash, 1 + Math.sin(this.totalTime * 0.004) * 0.015, 4, dtS);
+      // slow satisfied blink
+      const blinkP = (t - swallowEnd) / 900;
+      if (blinkP > 0.25 && blinkP < 0.5) {
+        this.eyeCloseL = damp(this.eyeCloseL, 0.85, 6, dtS);
+        this.eyeCloseR = damp(this.eyeCloseR, 0.85, 6, dtS);
+      } else {
+        this.eyeCloseL = damp(this.eyeCloseL, 0, 5, dtS);
+        this.eyeCloseR = damp(this.eyeCloseR, 0, 5, dtS);
+      }
+      if (!this.burpDone && Math.random() < 0.015) {
+        // 7b. TINY BURP (rarely)
+        this.burpDone = true;
+        interactionSounds.play('burp');
+        this.spawnParticles(2, 'burst');
+        this.bodyCompress = 0.06;
+      }
     } else {
-      this.foodAlpha = 0;
-      this.mouthOpenness = 0;
-      this.headLookY = 0;
-      this.blushAlpha = damp(this.blushAlpha, 0.15, 2, dt / 1000);
-      this.setAnimation('happy');
-      this.setEmotion('grateful');
-      this.addFriendship(3);
+      // 8. FINISH: clean its mouth, then slowly resume exploring
+      const p = (t - contentEnd) / finishAt;
+      this.eyeHappy = damp(this.eyeHappy, 0.6, 3, dtS);
+      this.smileStrength = damp(this.smileStrength, 0.5, 3, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.15, 3, dtS);
+      this.mouthOpenness = damp(this.mouthOpenness, 0.15, 5, dtS);
+      // small mouth-cleaning lick
+      this.headX = damp(this.headX, 1 + Math.sin(this.totalTime * 0.02) * 0.8, 4, dtS);
+      this.headY = damp(this.headY, 0.5 + Math.sin(this.totalTime * 0.025) * 0.5, 4, dtS);
+      if (this.fullness >= 70 && !this.yawnedAfterMeal && t > contentEnd + 250 && Math.random() < 0.03) {
+        this.yawnedAfterMeal = true;
+        interactionSounds.play('sigh');
+        this.mouthOpenness = 0.9;
+        this.headY = -3;
+        this.eyeCloseL = 0.9;
+        this.eyeCloseR = 0.9;
+      }
+      if (t > finishAt) {
+        this.fullness = Math.min(100, this.fullness + 12);
+        this.resetEatingState();
+        this.setAnimation('happy');
+        this.setEmotion('happy');
+        this.addFriendship(3);
+      }
     }
+
+    if (t >= chewEnd) {
+      this.eyeWide = damp(this.eyeWide, 0, 4, dtS);
+    }
+  }
+
+  private resetEatingState(): void {
+    this.foodAlpha = 0;
+    this.foodScale = 0;
+    this.chewPhase = 0;
+    this.lastChewCycle = -1;
+    this.swallowDone = false;
+    this.biteDone = false;
+    this.burpDone = false;
+    this.yawnedAfterMeal = false;
+    this.mouthOpenness = 0;
+    this.headLookY = 0;
+    this.headLookX = 0;
+    this.leanForward = 0;
+    this.foodGulpFlash = 0;
   }
 
   // ── Petting ──
   private updatePetting(dt: number): void {
-    this.petTimer += dt;
+    const dtS = dt / 1000;
+    const t = this.stateTime;
 
-    if (this.stateTime < 500) {
-      // notices the hand
-      this.petHandAlpha = this.stateTime / 500;
-      this.stalkLenL = damp(this.stalkLenL, 1.15, 4, dt / 1000);
-      this.stalkLenR = damp(this.stalkLenR, 1.1, 4, dt / 1000);
-      this.headLookY = 0.5; // look at hand
-    } else if (this.stateTime < 2200) {
-      // leans into the touch
-      this.bodyCompress = 0.03;
-      this.blushAlpha = damp(this.blushAlpha, 0.45, 3, dt / 1000);
-      this.bodySquash = damp(this.bodySquash, 0.94, 4, dt / 1000);
-      this.stalkLenL = damp(this.stalkLenL, 0.9, 4, dt / 1000);
-      this.stalkLenR = damp(this.stalkLenR, 0.9, 4, dt / 1000);
-      this.eyeCloseL = damp(this.eyeCloseL, 0.6, 4, dt / 1000);
-      this.eyeCloseR = damp(this.eyeCloseR, 0.6, 4, dt / 1000);
+    const approachEnd = 550;
+    const retractEnd = 820;
+    const relaxEnd = 1250;
+    const enjoyEnd = 2900;
+    const contentEnd = 3500;
+    const finishAt = 4100;
 
-      if (this.petTimer > 320) {
-        this.petTimer = 0;
-        this.petPhase++;
-        if (this.petPhase === 1) this.spawnParticles(4, 'sparkle');
-        else if (this.petPhase === 2) this.spawnParticles(3, 'burst');
-        else if (this.petPhase === 3) this.spawnHearts(3);
-        if (this.petPhase > 3) this.petPhase = 1; // repeated pets keep reacting
+    // Hand approaches from above, gently strokes, then withdraws
+    const handAlphaIn = t < enjoyEnd ? Math.min(1, t / 400) : Math.max(0, 1 - (t - contentEnd) / 500);
+    this.petHandAlpha = damp(this.petHandAlpha, handAlphaIn, 6, dtS);
+    this.petHandX = 6 + Math.sin(this.totalTime * 0.006) * 3;
+    this.petHandY = -16 + Math.sin(this.totalTime * 0.005) * 4;
+
+    if (t < approachEnd) {
+      // 1. NOTICES HAND: turns head toward touch, stalks rotate to follow it
+      const e = this.easeOut(t / approachEnd);
+      this.petHandAlpha = e;
+      this.headX = damp(this.headX, -2, 4, dtS);
+      this.headY = damp(this.headY, -2, 4, dtS);
+      this.headLookX = damp(this.headLookX, -0.6, 4, dtS);
+      this.headLookY = damp(this.headLookY, 0.6, 4, dtS);
+      this.stalkSwayL = damp(this.stalkSwayL, -0.4 * e, 4, dtS);
+      this.stalkSwayR = damp(this.stalkSwayR, -0.4 * e, 4, dtS);
+      this.stalkLenL = damp(this.stalkLenL, 1.1, 4, dtS);
+      this.stalkLenR = damp(this.stalkLenR, 1.1, 4, dtS);
+      this.eyeWide = damp(this.eyeWide, 0.5, 4, dtS);
+      this.pupilX = damp(this.pupilX, -2, 5, dtS);
+      this.pupilY = damp(this.pupilY, 2, 5, dtS);
+      // 2. BLINKS ONCE as the hand arrives
+      if (t > 240 && !this.petBlinkOnce) {
+        this.petBlinkOnce = true;
+        this.eyeCloseL = 1;
+        this.eyeCloseR = 1;
       }
-    } else if (this.stateTime < 2800) {
-      this.petHandAlpha = damp(this.petHandAlpha, 0, 6, dt / 1000);
-      this.blushAlpha = damp(this.blushAlpha, 0.2, 2, dt / 1000);
+      if (this.petBlinkOnce) {
+        this.eyeCloseL = damp(this.eyeCloseL, 0, 8, dtS);
+        this.eyeCloseR = damp(this.eyeCloseR, 0, 8, dtS);
+      }
+    } else if (t < retractEnd) {
+      // 3. TINY CAUTION RETRACT: briefly pulls back, natural wariness
+      const e = (t - approachEnd) / (retractEnd - approachEnd);
+      this.stalkLenL = damp(this.stalkLenL, 0.7, 4, dtS);
+      this.stalkLenR = damp(this.stalkLenR, 0.7, 4, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0.06, 5, dtS);
+      this.bodySquash = damp(this.bodySquash, 0.96, 5, dtS);
+      this.headX = damp(this.headX, -1, 4, dtS);
+      this.eyeWide = damp(this.eyeWide, 0.7, 4, dtS);
+      this.pupilX = damp(this.pupilX, -2.5, 5, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.2, 3, dtS);
+    } else if (t < relaxEnd) {
+      // 4. REALISES IT'S SAFE: relaxes, leans slightly into the petting
+      const e = (t - retractEnd) / (relaxEnd - retractEnd);
+      this.stalkLenL = damp(this.stalkLenL, 0.9, 4, dtS);
+      this.stalkLenR = damp(this.stalkLenR, 0.9, 4, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0.02, 4, dtS);
+      this.bodySquash = damp(this.bodySquash, 0.95, 4, dtS);
+      this.headX = damp(this.headX, 1.5, 4, dtS);
+      this.headY = damp(this.headY, -1, 4, dtS);
+      this.eyeWide = damp(this.eyeWide, 0, 4, dtS);
+      this.headLookX = damp(this.headLookX, -0.3, 4, dtS);
+      this.headLookY = damp(this.headLookY, 0.4, 4, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.35, 3, dtS);
+      // tiny soft shell settle as contact begins
+      this.shellSettle = Math.max(this.shellSettle, 0.5);
+    } else if (t < enjoyEnd) {
+      // 5. ENJOYMENT: variation-specific reaction + happy wiggle
+      this.applyPetVariation(dtS);
+
+      this.blushAlpha = damp(this.blushAlpha, 0.5, 3, dtS);
+      this.eyeHappy = damp(this.eyeHappy, 1, 3, dtS);
+      this.smileStrength = damp(this.smileStrength, 1, 3, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0.03, 4, dtS);
+
+      // repeated gentle strokes keep the reaction going
+      this.petStrokeTimer += dt;
+      if (this.petStrokeTimer > 600) {
+        this.petStrokeTimer = 0;
+        this.petStrokeCount++;
+        interactionSounds.play('squish');
+        if (this.petStrokeCount % 2 === 1) {
+          this.spawnParticles(3, 'sparkle');
+        }
+        if (this.petStrokeCount % 3 === 0) {
+          this.spawnHearts(1);
+          interactionSounds.play('chirp');
+        }
+        this.shellPos.vy -= 18; // tiny happy bounce per stroke
+        this.bodySquash = damp(this.bodySquash, 0.93, 5, dtS);
+      }
+      this.bodySquash = damp(this.bodySquash, 0.96 + Math.sin(this.totalTime * 0.02) * 0.02, 4, dtS);
+    } else if (t < contentEnd) {
+      // 6. SLOW CONTENTED BLINK: calm, warm, winding down
+      this.eyeHappy = damp(this.eyeHappy, 1, 3, dtS);
+      this.smileStrength = damp(this.smileStrength, 0.8, 3, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.3, 3, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0.01, 4, dtS);
+      const blinkP = (t - enjoyEnd) / (contentEnd - enjoyEnd);
+      if (blinkP > 0.15 && blinkP < 0.5) {
+        this.eyeCloseL = damp(this.eyeCloseL, 0.9, 5, dtS);
+        this.eyeCloseR = damp(this.eyeCloseR, 0.9, 5, dtS);
+      } else {
+        this.eyeCloseL = damp(this.eyeCloseL, 0.2, 5, dtS);
+        this.eyeCloseR = damp(this.eyeCloseR, 0.2, 5, dtS);
+      }
+      // soft squish as the hand lifts away
+      if (Math.random() < 0.01) interactionSounds.play('squish');
     } else {
-      this.petHandAlpha = 0;
-      this.blushAlpha = damp(this.blushAlpha, 0, 2, dt / 1000);
-      this.eyeCloseL = damp(this.eyeCloseL, 0, 4, dt / 1000);
-      this.eyeCloseR = damp(this.eyeCloseR, 0, 4, dt / 1000);
-      this.setAnimation('happy');
-      this.setEmotion('grateful');
-      this.addFriendship(2);
+      // 7. AFFECTIONATE FOLLOW-UP: stays close, keeps smiling, follows the cursor
+      this.petHandAlpha = damp(this.petHandAlpha, 0, 5, dtS);
+      this.eyeHappy = damp(this.eyeHappy, 0.5, 3, dtS);
+      this.smileStrength = damp(this.smileStrength, 0.4, 3, dtS);
+      this.blushAlpha = damp(this.blushAlpha, 0.15, 3, dtS);
+      this.eyeCloseL = damp(this.eyeCloseL, 0, 4, dtS);
+      this.eyeCloseR = damp(this.eyeCloseR, 0, 4, dtS);
+      this.bodyCompress = damp(this.bodyCompress, 0, 4, dtS);
+      // keep gazing toward the hand / cursor while affectionate
+      this.headLookX = damp(this.headLookX, 0, 3, dtS);
+      this.headLookY = damp(this.headLookY, 0.2, 3, dtS);
+      if (Math.random() < 0.006) this.spawnHearts(1);
+
+      if (t > finishAt) {
+        this.affectionTimer = 2600 + Math.random() * 1200;
+        this.resetPettingState();
+        this.setAnimation('happy');
+        this.setEmotion('grateful');
+        this.addFriendship(2);
+      }
     }
 
-    this.mouthScale = 1.2;
-    this.bodyCompress = damp(this.bodyCompress, 0.03, 4, dt / 1000);
+    this.bodyCompress = damp(this.bodyCompress, 0.03, 4, dtS);
   }
 
-  private mouthScale = 1;
+  private resetPettingState(): void {
+    this.petHandAlpha = 0;
+    this.petStrokeTimer = 0;
+    this.petStrokeCount = 0;
+    this.petBlinkOnce = false;
+    this.petHandX = 0;
+    this.petHandY = 0;
+  }
+
+  // Variation-specific body language for the enjoyment phase
+  private applyPetVariation(dtS: number): void {
+    const t = this.totalTime;
+    switch (this.petVariation) {
+      case 'happyWiggle':
+        this.bodyBaseY = damp(this.bodyBaseY, Math.sin(t * 0.015) * 1.2, 5, dtS);
+        this.stalkSwayL = damp(this.stalkSwayL, Math.sin(t * 0.02) * 0.3, 5, dtS);
+        this.stalkSwayR = damp(this.stalkSwayR, Math.cos(t * 0.02) * 0.3, 5, dtS);
+        break;
+      case 'closeEyes':
+        this.eyeCloseL = damp(this.eyeCloseL, 0.75, 4, dtS);
+        this.eyeCloseR = damp(this.eyeCloseR, 0.75, 4, dtS);
+        this.bodySquash = damp(this.bodySquash, 0.97, 5, dtS);
+        break;
+      case 'stretchNeck':
+        this.headY = damp(this.headY, -3, 3, dtS);
+        this.headX = damp(this.headX, 2, 3, dtS);
+        this.bodyStretch = damp(this.bodyStretch, 1.06, 3, dtS);
+        this.stalkLenL = damp(this.stalkLenL, 1.15, 4, dtS);
+        this.stalkLenR = damp(this.stalkLenR, 1.15, 4, dtS);
+        break;
+      case 'spinShell':
+        this.shellRot = damp(this.shellRot, Math.sin(t * 0.004) * 0.12, 3, dtS);
+        this.shellPos.x = damp(this.shellPos.x, SHELL_ANCHOR + Math.sin(t * 0.005) * 1.5, 4, dtS);
+        break;
+      case 'tinyBounce':
+        this.bodyBaseY = damp(this.bodyBaseY, -Math.abs(Math.sin(t * 0.02)) * 1.8, 5, dtS);
+        this.bodySquash = damp(this.bodySquash, 0.93, 5, dtS);
+        break;
+      case 'raiseStalks':
+        this.stalkLenL = damp(this.stalkLenL, 1.35, 4, dtS);
+        this.stalkLenR = damp(this.stalkLenR, 1.35, 4, dtS);
+        this.headY = damp(this.headY, -1.5, 4, dtS);
+        break;
+      case 'blush':
+        this.blushAlpha = damp(this.blushAlpha, 0.75, 4, dtS);
+        this.headX = damp(this.headX, 0.5, 4, dtS);
+        this.stalkSwayL = damp(this.stalkSwayL, Math.sin(t * 0.02) * 0.15, 5, dtS);
+        this.stalkSwayR = damp(this.stalkSwayR, -Math.sin(t * 0.02) * 0.15, 5, dtS);
+        break;
+      case 'tinyLaugh':
+        this.headY = damp(this.headY, -Math.abs(Math.sin(t * 0.03)) * 1.5, 5, dtS);
+        this.mouthOpenness = damp(this.mouthOpenness, 0.25 + Math.sin(t * 0.03) * 0.15, 8, dtS);
+        this.bodySquash = damp(this.bodySquash, 0.95, 5, dtS);
+        break;
+      case 'hidePeek':
+        // hides briefly inside its shell, then peeks out again
+        {
+          const p = (t % 1300) / 1300;
+          if (p < 0.3) {
+            this.stalkLenL = damp(this.stalkLenL, 0.5, 4, dtS);
+            this.stalkLenR = damp(this.stalkLenR, 0.5, 4, dtS);
+            this.bodyCompress = damp(this.bodyCompress, 0.06, 4, dtS);
+            this.headX = damp(this.headX, -2, 4, dtS);
+          } else {
+            this.stalkLenL = damp(this.stalkLenL, 1, 4, dtS);
+            this.stalkLenR = damp(this.stalkLenR, 1, 4, dtS);
+            this.bodyCompress = damp(this.bodyCompress, 0.02, 4, dtS);
+            this.headX = damp(this.headX, 1, 4, dtS);
+            this.headY = damp(this.headY, -1, 4, dtS);
+          }
+        }
+        break;
+      case 'rollToward':
+        this.leanForward = damp(this.leanForward, 2.5, 4, dtS);
+        this.headX = damp(this.headX, 2, 4, dtS);
+        this.bodyCompress = damp(this.bodyCompress, 0.04, 4, dtS);
+        this.bodySquash = damp(this.bodySquash, 0.94, 5, dtS);
+        break;
+    }
+  }
+
+  private spawnCrumbs(food: FoodConfig): void {
+    const s = DEFAULT_SCALE;
+    for (let i = 0; i < 2; i++) {
+      this.particles.push({
+        x: this.position.x + (this.direction === 'left' ? -18 : 18) + (Math.random() - 0.5) * 8,
+        y: this.position.y - 8 + (Math.random() - 0.5) * 6,
+        vx: (Math.random() - 0.5) * 1.2,
+        vy: 0.4 + Math.random() * 0.6,
+        life: 24 + Math.random() * 18,
+        maxLife: 42,
+        size: s * (1 + Math.random() * 1.5),
+        color: food.crumbColor,
+        alpha: 1,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.15,
+        shape: 'circle',
+      });
+    }
+  }
 
   // ═══════════════════════════════════════════════
   // EFFECTS
@@ -1160,7 +1649,35 @@ export class SnailEngine {
 
   private drawEye(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, close: number): void {
     const s = DEFAULT_SCALE;
+
+    // Happy curved eye: a soft downward arc (∩) like a smiling closed eye
+    if (this.eyeHappy > 0.35 && close < 0.55) {
+      const h = this.eyeHappy;
+      const wide = this.eyeWide > 0.2 ? 1 + this.eyeWide * 0.15 : 1;
+      ctx.save();
+      ctx.translate(x, y);
+      // gentle white base
+      ctx.fillStyle = hexColor(COLORS.eyeWhite);
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.95 * wide, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      // curved happy lid
+      ctx.strokeStyle = hexColor(this.skinColorDark);
+      ctx.globalAlpha = 0.7 + h * 0.25;
+      ctx.lineWidth = 1.7 * s;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(0, -0.5 * s, r * 0.72 * wide, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+      return;
+    }
+
     const squash = 1 - close * 0.88;
+    const wide = this.eyeWide > 0.2 ? 1 + this.eyeWide * 0.18 : 1;
 
     ctx.save();
     ctx.translate(x, y);
@@ -1169,14 +1686,14 @@ export class SnailEngine {
     // eye white
     ctx.fillStyle = hexColor(COLORS.eyeWhite);
     ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.arc(0, 0, r * wide, 0, Math.PI * 2);
     ctx.fill();
 
     // blue tint
     ctx.fillStyle = hexColor(COLORS.eyeBlue);
     ctx.globalAlpha = 0.25;
     ctx.beginPath();
-    ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2);
+    ctx.arc(0, 0, r * 0.55 * wide, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
@@ -1184,7 +1701,7 @@ export class SnailEngine {
     if (close < 0.85) {
       ctx.fillStyle = hexColor(COLORS.pupil);
       ctx.beginPath();
-      ctx.arc(this.pupilX * 0.7, this.pupilY * 0.7, 3.2 * s, 0, Math.PI * 2);
+      ctx.arc(this.pupilX * 0.7, this.pupilY * 0.7, (this.eyeWide > 0.5 ? 3.9 : 3.2) * s, 0, Math.PI * 2);
       ctx.fill();
       // pupil glint
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -1196,7 +1713,7 @@ export class SnailEngine {
     // highlight
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.beginPath();
-    ctx.arc(-r * 0.3, -r * 0.3, r * 0.3, 0, Math.PI * 2);
+    ctx.arc(-r * 0.3 * wide, -r * 0.3 * wide, r * 0.3 * wide, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -1205,19 +1722,34 @@ export class SnailEngine {
   private drawMouth(ctx: CanvasRenderingContext2D): void {
     if (this.currentState === 'sleeping') return;
     const s = DEFAULT_SCALE;
+    const my = 4;
 
     ctx.save();
+
+    // Open mouth (eating / chewing / talking / laughing)
+    if (this.mouthOpenness > 0.12) {
+      ctx.fillStyle = hexColor(COLORS.pupil);
+      ctx.globalAlpha = 0.5 + this.mouthOpenness * 0.3;
+      ctx.beginPath();
+      ctx.ellipse(0.5 * s, my + 0.5 * s, 2.2 * s + this.mouthOpenness * 1.6 * s, (1.2 + this.mouthOpenness * 2.4) * s, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+      return;
+    }
+
     ctx.strokeStyle = hexColor(this.skinColorDark);
     ctx.globalAlpha = 0.65;
     ctx.lineWidth = 1.6 * s;
     ctx.lineCap = 'round';
 
-    const my = 4;
+    // gentle smile is a bit wider and softer when smiling strongly
+    const smileR = 3.5 * s * (1 + this.smileStrength * 0.35);
 
     switch (this.currentEmotion) {
       case 'happy': case 'excited': case 'celebrating': case 'grateful':
         ctx.beginPath();
-        ctx.arc(1, my + 1, 3.5 * s, 0.2, Math.PI - 0.2);
+        ctx.arc(1, my + 1 - this.smileStrength * 0.5, smileR, 0.2, Math.PI - 0.2);
         ctx.stroke();
         break;
       case 'confused':
@@ -1341,41 +1873,174 @@ export class SnailEngine {
   private drawFood(ctx: CanvasRenderingContext2D): void {
     if (this.foodAlpha <= 0) return;
     const s = DEFAULT_SCALE;
-    const fx = HEAD_X + this.headX + 12;
-    const fy = this.headY + 8;
+    const food = FOODS[this.foodType];
+    const flip = this.direction === 'left' ? -1 : 1;
+    const fx = this.position.x + (HEAD_X + this.headX + 14) * flip;
+    const fy = this.position.y + this.bodyBaseY + this.headY + 6 + this.foodBob;
 
     ctx.save();
     ctx.globalAlpha = this.foodAlpha;
     ctx.translate(fx, fy);
+    ctx.scale(flip, 1);
+    ctx.rotate(this.foodRot);
     ctx.scale(this.foodScale, this.foodScale);
-    ctx.fillStyle = hexColor(COLORS.accent);
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 8 * s, 5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = hexColor(COLORS.accentDark);
-    ctx.globalAlpha = 0.5 * this.foodAlpha;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 5 * s, 2.5 * s, 0, 0, Math.PI * 2);
-    ctx.fill();
+
+    switch (this.foodType) {
+      case 'leaf': {
+        // two-toned leafy green
+        ctx.fillStyle = hexColor(food.colorDark);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 9 * s, 5.5 * s, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = hexColor(food.color);
+        ctx.beginPath();
+        ctx.ellipse(0.8, -0.6, 7 * s, 4 * s, -0.3, 0, Math.PI * 2);
+        ctx.fill();
+        // center vein
+        ctx.strokeStyle = hexColor(food.colorDark);
+        ctx.globalAlpha = 0.6 * this.foodAlpha;
+        ctx.lineWidth = 0.8 * s;
+        ctx.beginPath();
+        ctx.moveTo(-6 * s, 2 * s);
+        ctx.lineTo(6 * s, -2.5 * s);
+        ctx.stroke();
+        break;
+      }
+      case 'carrot': {
+        // orange carrot with a green top
+        ctx.fillStyle = hexColor(food.colorDark);
+        ctx.beginPath();
+        ctx.moveTo(-8 * s, 4 * s);
+        ctx.lineTo(8 * s, 4 * s);
+        ctx.lineTo(0, -5 * s);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = hexColor(food.color);
+        ctx.beginPath();
+        ctx.moveTo(-6.5 * s, 4 * s);
+        ctx.lineTo(6.5 * s, 4 * s);
+        ctx.lineTo(0, -3.5 * s);
+        ctx.closePath();
+        ctx.fill();
+        // leafy top
+        ctx.strokeStyle = hexColor(0x22c55e);
+        ctx.lineWidth = 1.2 * s;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(-2 * s, -3 * s);
+        ctx.quadraticCurveTo(-4 * s, -7 * s, -2 * s, -9 * s);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -3.5 * s);
+        ctx.quadraticCurveTo(0.5 * s, -8 * s, 2.5 * s, -9 * s);
+        ctx.stroke();
+        break;
+      }
+      case 'fruit': {
+        // juicy red fruit with a stem and shine
+        ctx.fillStyle = hexColor(food.color);
+        ctx.beginPath();
+        ctx.arc(0, 0, 6 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = hexColor(food.colorDark);
+        ctx.globalAlpha = 0.5 * this.foodAlpha;
+        ctx.beginPath();
+        ctx.arc(1.5 * s, 1.5 * s, 4 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = this.foodAlpha;
+        // stem + leaf
+        ctx.strokeStyle = hexColor(0x15803d);
+        ctx.lineWidth = 1.2 * s;
+        ctx.beginPath();
+        ctx.moveTo(0, -5 * s);
+        ctx.lineTo(0, -7.5 * s);
+        ctx.stroke();
+        ctx.fillStyle = hexColor(0x22c55e);
+        ctx.beginPath();
+        ctx.ellipse(2 * s, -7 * s, 2.2 * s, 1.2 * s, 0.4, 0, Math.PI * 2);
+        ctx.fill();
+        // shine
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.beginPath();
+        ctx.arc(-2 * s, -2 * s, 1.5 * s, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'mushroom': {
+        // little mushroom: cap + stem + spots
+        ctx.fillStyle = hexColor(0xf5f0e8);
+        ctx.beginPath();
+        ctx.roundRect(-3 * s, 1 * s, 6 * s, 6 * s, 2 * s);
+        ctx.fill();
+        ctx.fillStyle = hexColor(food.color);
+        ctx.beginPath();
+        ctx.arc(0, 1 * s, 6.5 * s, Math.PI, 0);
+        ctx.fill();
+        ctx.fillStyle = hexColor(food.colorDark);
+        ctx.globalAlpha = 0.5 * this.foodAlpha;
+        ctx.beginPath();
+        ctx.arc(0, 1 * s, 6.5 * s, Math.PI, Math.PI * 1.4);
+        ctx.fill();
+        ctx.globalAlpha = this.foodAlpha;
+        // spots
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.beginPath();
+        ctx.arc(-2.5 * s, -2 * s, 1.2 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(2 * s, -3 * s, 1 * s, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(0.5 * s, 0 * s, 0.8 * s, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case 'flower': {
+        // a little blossom with a center
+        const petals = 6;
+        ctx.fillStyle = hexColor(food.color);
+        for (let i = 0; i < petals; i++) {
+          const a = (i / petals) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.ellipse(Math.cos(a) * 3.4 * s, Math.sin(a) * 3.4 * s, 2.6 * s, 1.7 * s, a, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = hexColor(food.colorDark);
+        ctx.beginPath();
+        ctx.arc(0, 0, 1.8 * s, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+    }
+
     ctx.restore();
   }
 
   private drawPetHand(ctx: CanvasRenderingContext2D): void {
     if (this.petHandAlpha <= 0) return;
     const s = DEFAULT_SCALE;
-    const hx = HEAD_X + this.headX + 6;
-    const hy = this.headY - 14 + Math.sin(this.stateTime * 0.005) * 3;
+    const flip = this.direction === 'left' ? -1 : 1;
+    const hx = this.position.x + (HEAD_X + this.headX + this.petHandX) * flip;
+    const hy = this.position.y + this.bodyBaseY + this.headY + this.petHandY + Math.sin(this.stateTime * 0.006) * 2;
 
     ctx.save();
     ctx.globalAlpha = this.petHandAlpha;
+    // soft rounded hand / fingertip gently stroking
     ctx.fillStyle = hexColor(COLORS.hand);
     ctx.beginPath();
-    ctx.arc(hx, hy, 6 * s, 0, Math.PI * 2);
+    ctx.ellipse(hx, hy, 7 * s, 5.5 * s, -0.2, 0, Math.PI * 2);
     ctx.fill();
+    // fingertip pad
     ctx.fillStyle = hexColor(COLORS.handShadow);
-    ctx.globalAlpha = 0.5 * this.petHandAlpha;
+    ctx.globalAlpha = 0.55 * this.petHandAlpha;
     ctx.beginPath();
-    ctx.arc(hx + 1, hy + 1, 4 * s, 0, Math.PI * 2);
+    ctx.ellipse(hx - 2 * s, hy + 1.5 * s, 3.5 * s, 2.5 * s, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = this.petHandAlpha;
+    // nail highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(hx - 3 * s, hy - 2 * s, 1.6 * s, 1 * s, -0.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -1483,14 +2148,23 @@ export class SnailEngine {
         this.spawnParticles(18, 'confetti');
         break;
       case 'eating':
-        this.foodAlpha = 1;
-        this.foodScale = 0.5;
+        this.foodAlpha = 0;
+        this.foodScale = 0.4;
+        this.chewPhase = 0;
+        this.lastChewCycle = -1;
+        this.biteDone = false;
+        this.swallowDone = false;
+        this.burpDone = false;
+        this.yawnedAfterMeal = false;
         this.spawnParticles(5, 'sparkle');
         break;
       case 'petting':
-        this.petPhase = 0;
-        this.petTimer = 0;
+        this.resetPettingState();
+        this.petBlinkOnce = false;
+        this.petStrokeTimer = 0;
+        this.petStrokeCount = 0;
         this.petHandAlpha = 0;
+        this.affectionTimer = 0;
         break;
       case 'idle': case 'happy':
         this.animationOverride = null;
@@ -1511,12 +2185,24 @@ export class SnailEngine {
     }
   }
 
-  public feed(): void {
+  public feed(foodType?: FoodType): void {
+    if (foodType && FOOD_TYPES.includes(foodType)) {
+      this.foodType = foodType;
+    } else {
+      // pick a random food, avoid repeating the last one
+      const options = FOOD_TYPES.filter((f) => f !== this.lastFoodType);
+      this.foodType = options[Math.floor(Math.random() * options.length)];
+    }
+    this.lastFoodType = this.foodType;
     this.setAnimation('eating');
     this.setEmotion('excited');
   }
 
   public pet(): void {
+    // pick a random petting variation, never replay the same one twice
+    const options = PET_VARIATIONS.filter((v) => v !== this.lastPetVariation);
+    this.petVariation = options[Math.floor(Math.random() * options.length)];
+    this.lastPetVariation = this.petVariation;
     this.setAnimation('petting');
     this.setEmotion('grateful');
     this.spawnHearts(2);
