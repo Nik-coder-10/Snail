@@ -99,49 +99,53 @@ function noise(dur: number, opts: ToneOpts = {}): void {
 }
 
 function play(name: SoundName): void {
-  if (!soundEnabled()) return;
-  switch (name) {
-    case 'squish':
-      noise(0.14, { vol: 0.06 });
-      tone(160, 0.12, { freqEnd: 90, vol: 0.05 });
-      break;
-    case 'chirp':
-      tone(620, 0.07, { freqEnd: 860, vol: 0.05, delay: 0 });
-      tone(880, 0.09, { freqEnd: 1200, vol: 0.045, delay: 0.07 });
-      break;
-    case 'sparkle':
-      tone(1568, 0.1, { vol: 0.035, delay: 0 });
-      tone(2093, 0.1, { vol: 0.03, delay: 0.06 });
-      tone(2637, 0.16, { vol: 0.025, delay: 0.12 });
-      break;
-    case 'munch':
-      noise(0.06, { vol: 0.07 });
-      tone(120, 0.05, { freqEnd: 80, vol: 0.05, delay: 0.01 });
-      break;
-    case 'crunch':
-      noise(0.05, { vol: 0.1, delay: 0 });
-      noise(0.05, { vol: 0.07, delay: 0.05 });
-      tone(240, 0.03, { freqEnd: 140, vol: 0.04 });
-      break;
-    case 'softMunch':
-      noise(0.08, { vol: 0.045 });
-      tone(150, 0.07, { freqEnd: 100, vol: 0.035 });
-      break;
-    case 'gulp':
-      tone(320, 0.12, { freqEnd: 180, vol: 0.06 });
-      break;
-    case 'sigh':
-      tone(340, 0.45, { freqEnd: 200, vol: 0.04, type: 'sine' });
-      noise(0.35, { vol: 0.02 });
-      break;
-    case 'burp':
-      tone(150, 0.14, { freqEnd: 110, vol: 0.06, type: 'triangle' });
-      tone(120, 0.1, { freqEnd: 140, vol: 0.04, type: 'triangle', delay: 0.14 });
-      break;
-    case 'sniff':
-      noise(0.12, { vol: 0.05 });
-      tone(420, 0.09, { freqEnd: 260, vol: 0.04 });
-      break;
+  try {
+    if (!soundEnabled()) return;
+    switch (name) {
+      case 'squish':
+        noise(0.14, { vol: 0.06 });
+        tone(160, 0.12, { freqEnd: 90, vol: 0.05 });
+        break;
+      case 'chirp':
+        tone(620, 0.07, { freqEnd: 860, vol: 0.05, delay: 0 });
+        tone(880, 0.09, { freqEnd: 1200, vol: 0.045, delay: 0.07 });
+        break;
+      case 'sparkle':
+        tone(1568, 0.1, { vol: 0.035, delay: 0 });
+        tone(2093, 0.1, { vol: 0.03, delay: 0.06 });
+        tone(2637, 0.16, { vol: 0.025, delay: 0.12 });
+        break;
+      case 'munch':
+        noise(0.06, { vol: 0.07 });
+        tone(120, 0.05, { freqEnd: 80, vol: 0.05, delay: 0.01 });
+        break;
+      case 'crunch':
+        noise(0.05, { vol: 0.1, delay: 0 });
+        noise(0.05, { vol: 0.07, delay: 0.05 });
+        tone(240, 0.03, { freqEnd: 140, vol: 0.04 });
+        break;
+      case 'softMunch':
+        noise(0.08, { vol: 0.045 });
+        tone(150, 0.07, { freqEnd: 100, vol: 0.035 });
+        break;
+      case 'gulp':
+        tone(320, 0.12, { freqEnd: 180, vol: 0.06 });
+        break;
+      case 'sigh':
+        tone(340, 0.45, { freqEnd: 200, vol: 0.04, type: 'sine' });
+        noise(0.35, { vol: 0.02 });
+        break;
+      case 'burp':
+        tone(150, 0.14, { freqEnd: 110, vol: 0.06, type: 'triangle' });
+        tone(120, 0.1, { freqEnd: 140, vol: 0.04, type: 'triangle', delay: 0.14 });
+        break;
+      case 'sniff':
+        noise(0.12, { vol: 0.05 });
+        tone(420, 0.09, { freqEnd: 260, vol: 0.04 });
+        break;
+    }
+  } catch {
+    // audio is best-effort; never let it break the animation loop
   }
 }
 

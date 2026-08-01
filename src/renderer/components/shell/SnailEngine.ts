@@ -312,8 +312,13 @@ export class SnailEngine {
     const loop = (now: number) => {
       const dt = Math.min(now - lastTime, 50);
       lastTime = now;
-      this.update(dt);
-      this.render();
+      try {
+        this.update(dt);
+        this.render();
+      } catch (err) {
+        // never let a single bad frame kill the snail's animation loop
+        console.error('[SnailEngine] frame error:', err);
+      }
       this.animFrame = requestAnimationFrame(loop);
     };
     this.animFrame = requestAnimationFrame(loop);
@@ -2148,6 +2153,7 @@ export class SnailEngine {
         this.spawnParticles(18, 'confetti');
         break;
       case 'eating':
+        this.animationOverride = null;
         this.foodAlpha = 0;
         this.foodScale = 0.4;
         this.chewPhase = 0;
@@ -2159,6 +2165,7 @@ export class SnailEngine {
         this.spawnParticles(5, 'sparkle');
         break;
       case 'petting':
+        this.animationOverride = null;
         this.resetPettingState();
         this.petBlinkOnce = false;
         this.petStrokeTimer = 0;
