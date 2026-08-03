@@ -169,6 +169,11 @@ function registerIPC(): void {
   ipcMain.handle('window:getScreenBounds', () => {
     return screen.getPrimaryDisplay().workArea;
   });
+
+  // A deliberately small, privacy-preserving bit of environmental awareness.
+  // The companion receives only the cursor point, never window titles, typed text,
+  // screenshots, or accessibility data.
+  ipcMain.handle('desktop:getCursorPoint', () => screen.getCursorScreenPoint());
 }
 
 function startReminderChecker(): void {

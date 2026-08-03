@@ -848,7 +848,13 @@ export class SnailEngine {
       case 'curious': return { speedMul: 0.85, bounceMul: 1.1, stretchMul: 1, pauseChance: 0.55, lookChance: 1.6 };
       case 'sleepy': return { speedMul: 0.55, bounceMul: 0.8, stretchMul: 0.9, pauseChance: 0.7, lookChance: 0.4 };
       case 'confused': return { speedMul: 0.7, bounceMul: 0.9, stretchMul: 0.95, pauseChance: 0.6, lookChance: 1 };
-      case 'thinking': case 'working': return { speedMul: 0.8, bounceMul: 0.9, stretchMul: 0.95, pauseChance: 0.6, lookChance: 1.4 };
+      case 'thinking': case 'working': case 'focused': return { speedMul: 0.8, bounceMul: 0.9, stretchMul: 0.95, pauseChance: 0.6, lookChance: 1.4 };
+      case 'hungry': return { speedMul: 1.2, bounceMul: 1.15, stretchMul: 1.2, pauseChance: 0.12, lookChance: 1.8 };
+      case 'scared': return { speedMul: 1.35, bounceMul: 0.45, stretchMul: 0.78, pauseChance: 0, lookChance: 0.25 };
+      case 'proud': return { speedMul: 0.95, bounceMul: 1.25, stretchMul: 1.05, pauseChance: 0.25, lookChance: 0.9 };
+      case 'embarrassed': return { speedMul: 0.65, bounceMul: 0.7, stretchMul: 0.85, pauseChance: 0.7, lookChance: 0.35 };
+      case 'relaxed': return { speedMul: 0.7, bounceMul: 0.85, stretchMul: 0.95, pauseChance: 0.65, lookChance: 0.7 };
+      case 'playful': return { speedMul: 1.1, bounceMul: 1.4, stretchMul: 1.15, pauseChance: 0.2, lookChance: 1.5 };
       default: return { speedMul: 1, bounceMul: 1, stretchMul: 1, pauseChance: 0.35, lookChance: 1 };
     }
   }
@@ -2249,14 +2255,44 @@ export class SnailEngine {
     if (!over) this.lastInteractPos = null;
   }
 
-  public teleportTo(x: number, y: number): void {
-    this.position = { x: clamp(x, 0, this.width), y: clamp(y, 0, this.height) };
-    this.velocity = { x: 0, y: 0 };
-    this.crawlAmp = 0;
+  /**
+   * A hand may move the animal, but it never becomes a rigid cursor sticker.
+   * The body leads toward the hand while the shell deliberately trails behind.
+   */
+  public dragTo(x: number, y: number): void {
+    const next = { x: clamp(x, 20, this.width - 20), y: clamp(y, 20, this.height - 20) };
+    const dx = next.x - this.position.x;
+    const dy = next.y - this.position.y;
+    this.velocity = { x: dx, y: dy };
+    this.position = next;
+    this.isDragging = true;
+    this.targetPos = null;
+    this.leanForward = clamp(dx * 0.12, -7, 7);
+    this.bodyStretch = 1 + clamp(Math.hypot(dx, dy) * 0.008, 0, 0.14);
+    this.bodyCompress = clamp(Math.abs(dy) * 0.01, 0, 0.12);
+    this.shellPos.vx -= dx * 0.05;
+    this.shellPos.vy -= dy * 0.035;
+    if (Math.abs(dx) > 2) this.direction = dx > 0 ? 'right' : 'left';
   }
+
+  /** Settle back onto the desktop after a release, with visible shell follow-through. */
+  public releaseDrag(): void {
+    this.isDragging = false;
+    this.shellSettle = 1;
+    this.shellPos.vx += this.velocity.x * 0.22;
+    this.shellPos.vy += this.velocity.y * 0.14;
+    this.velocity = { x: 0, y: 0 };
+    this.bodyCompress = 0.1;
+    this.setEmotion('curious');
+    this.setAnimation('idle');
+  }
+
+  // Compatibility alias for integrations built before drag deformation existed.
+  public teleportTo(x: number, y: number): void { this.dragTo(x, y); }
 
   public setDragging(dragging: boolean): void {
     this.isDragging = dragging;
+    if (!dragging) this.releaseDrag();
   }
 
   public getPosition(): Position { return { ...this.position }; }

@@ -19,7 +19,10 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ dragging: false, startX: 0, startY: 0 });
   const autoMoveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cursorPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const interactionTimerRef = useRef<number>(Date.now());
+  // Exploration is a small intention queue, not a random patrol route.
+  const explorationStepRef = useRef(0);
   const sizeRef = useRef({ width: window.innerWidth, height: window.innerHeight });
 
   const isDraggingRef = useRef(false);
@@ -90,7 +93,15 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
     };
     window.addEventListener('resize', handleResize);
 
-    const move = () => {
+    // Keep the eyes aware of the owner even when they are working in another
+    // application. This is throttled and sends no content back to the renderer.
+    cursorPollRef.current = setInterval(() => {
+      window.snailAPI.getCursorPoint()
+        .then((point) => engineRef.current?.lookAt(point.x, point.y))
+        .catch(() => undefined);
+    }, 180);
+
+    const move = async () => {
       if (!engineRef.current || isDraggingRef.current || animationRef.current === 'sleeping' ||
           animationRef.current === 'spawning' || animationRef.current === 'hiding' ||
           animationRef.current === 'eating' || animationRef.current === 'petting') {
@@ -113,14 +124,28 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
       }
 
       const { width, height } = sizeRef.current;
-      const margin = 60;
-      const targetX = margin + Math.random() * (width - margin * 2);
-      const targetY = margin + Math.random() * (height - margin * 2);
+      const cursor = await window.snailAPI.getCursorPoint().catch(() => null);
+      const step = explorationStepRef.current++ % 4;
 
-      engineRef.current.moveTo(targetX, targetY);
+      // Each destination has a readable reason: observe the owner, inspect a
+      // boundary, or choose the quiet taskbar ledge for a rest. We avoid both
+      // random coordinates and invisible desktop-content scraping.
+      if (step === 0 && cursor) {
+        engineRef.current.setEmotion('curious');
+        engineRef.current.lookAt(cursor.x, cursor.y);
+        engineRef.current.moveTo(cursor.x, cursor.y);
+      } else if (step === 1) {
+        engineRef.current.setEmotion('focused');
+        engineRef.current.moveTo(width * 0.82, height - 52); // taskbar lookout
+      } else if (step === 2) {
+        engineRef.current.setEmotion('curious');
+        engineRef.current.moveTo(54, height * 0.32); // inspect the desktop edge
+      } else {
+        engineRef.current.setEmotion('relaxed');
+        engineRef.current.moveTo(width * 0.5, height - 48); // warm resting ledge
+      }
 
-      const nextDelay = 3000 + Math.random() * 5000;
-      autoMoveRef.current = setTimeout(move, nextDelay);
+      autoMoveRef.current = setTimeout(move, step === 3 ? 11000 : 7500);
     };
 
     autoMoveRef.current = setTimeout(move, 1000);
@@ -133,6 +158,7 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
       window.removeEventListener('snail:pet', handlePet);
       window.removeEventListener('resize', handleResize);
       if (autoMoveRef.current) clearTimeout(autoMoveRef.current);
+      if (cursorPollRef.current) clearInterval(cursorPollRef.current);
       engine.destroy();
     };
   }, []);
@@ -156,11 +182,12 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
     setSnailAnimation('idle');
     setSnailEmotion('curious');
     engineRef.current.lookAt(e.clientX, e.clientY);
+    engineRef.current.setDragging(true);
     engineRef.current.setMouseOver(true);
 
     const onMouseMove = (ev: MouseEvent) => {
       if (engineRef.current) {
-        engineRef.current.teleportTo(ev.clientX, ev.clientY);
+        engineRef.current.dragTo(ev.clientX, ev.clientY);
       }
       setSnailPosition({ x: ev.clientX, y: ev.clientY });
     };
@@ -170,6 +197,7 @@ export const SnailContainer: React.FC<SnailContainerProps> = ({
       setSnailDragging(false);
       if (engineRef.current) {
         engineRef.current.setMouseOver(false);
+        engineRef.current.releaseDrag();
       }
 
       const deltaX = Math.abs(dragRef.current.startX - ev.clientX);

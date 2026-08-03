@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('snailAPI', {
   openFileDialog: () => ipcRenderer.invoke('dialog:open'),
 
   getScreenBounds: () => ipcRenderer.invoke('window:getScreenBounds'),
+  getCursorPoint: () => ipcRenderer.invoke('desktop:getCursorPoint'),
 
   startDrag: () => ipcRenderer.send('window:startDrag'),
   stopDrag: () => ipcRenderer.send('window:stopDrag'),

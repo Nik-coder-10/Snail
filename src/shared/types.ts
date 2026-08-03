@@ -10,7 +10,14 @@ export type EmotionalState =
   | 'listening'
   | 'working'
   | 'surprised'
-  | 'grateful';
+  | 'grateful'
+  | 'focused'
+  | 'hungry'
+  | 'scared'
+  | 'proud'
+  | 'embarrassed'
+  | 'relaxed'
+  | 'playful';
 
 export type AnimationState =
   | 'spawning'

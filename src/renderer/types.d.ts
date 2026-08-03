@@ -7,6 +7,8 @@ interface SnailAPI {
   openURL: (url: string) => Promise<void>;
   openFileDialog: () => Promise<string[]>;
   getScreenBounds: () => Promise<{ x: number; y: number; width: number; height: number }>;
+  /** Cursor location only; no window or user-content inspection. */
+  getCursorPoint: () => Promise<{ x: number; y: number }>;
   startDrag: () => void;
   stopDrag: () => void;
   hideWindow: () => void;
